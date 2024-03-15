@@ -5,6 +5,10 @@ import torch
 from torch import nn
 
 from clip.model import CLIP, convert_weights
+# from clip.model import build_model as build_clip
+
+from .modules import CrossEn
+from .transfromer import TemporalTransformer
 
 CLIP_NAME = {
     "RN50": "RN50.pt",
@@ -25,11 +29,62 @@ def build_model(state_dict: dict):
     if state_dict is {} => build from empty
     """
     
+    
 class CLIP4Clip(nn.Module):
     CLIP_NAME = "ViT-B/32"
-    
-    def __init__(self, clip_name=CLIP_NAME):
+    def __init__(self,
+        clip_name=CLIP_NAME,
+        temporal_mode: TemporalMode = TemporalMode.MEAN_POOLING,
+        hidden_size = 512,
+        max_temporal_embeddings = 128,
+        num_temporal_hidden_layers = 4,
+    ) -> None:
+        super().__init__()
+       
+        self.temporal_mode = temporal_mode 
+        self.hidden_size = hidden_size
+        self.num_temporal_hidden_layers = num_temporal_hidden_layers
+
         self.clip = self._init_clip(clip_name)
+        assert self.num_temporal_embeddings <= max_temporal_embeddings
+        
+        self.temporal_trans = None
+        if temporal_mode == TemporalMode.TRANSFORMER:
+            self.temporal_trans = self._init_temporal()
+        
+        self.loss_fn = CrossEn()
+        self.norm = lambda x: x / x.norm(dim=-1, keepdim=True)
+    
+        return
+        
+        
+    def _init_temporal_trans(self):          
+        self.num_temporal_embeddings = self.positional_embedding.shape[0]
+        self.transformer_width = self.clip.ln_final.weight.shape.shape[0]
+        self.heads = self.transformer_width // 64
+        
+        temporal_trans = TemporalTransformer(
+            width=self.transformer_width, 
+            layers=self.num_temporal_hidden_layers,
+            heads=self.transformer_heads, 
+            hidden_size=self.hidden_size,
+            num_temporal_embeddings=self.num_temporal_embeddings
+        )   
+       
+        temporal_state_dict = {
+            "temporal_embeddings.weight": self.clip.positional_embedding.clone()
+        } 
+        
+        for key, val in self.clip.transformer.state_dict(prefix="transformer.").items():
+            num_layer = int(key.split(".")[2]) 
+            if num_layer >= self.num_temporal_hidden_layers:
+                break
+            
+            temporal_state_dict[key] = val.clone() 
+        
+        temporal_trans.load_state_dict(temporal_state_dict)
+        return temporal_trans
+                
         
     def _init_clip(self, model_name, device="cpu"):
         model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ViT-B-32.pt")
@@ -51,7 +106,6 @@ class CLIP4Clip(nn.Module):
         except RuntimeError:
             state_dict = torch.load(model_path, map_location="cpu")
             
-           
         return self.build_clip(state_dict)
 
     # model = build_clip(state_dict)
@@ -60,7 +114,7 @@ class CLIP4Clip(nn.Module):
     # return model
         
     def build_clip(self, state_dict: dict):
-        """Copied form the clip package"""
+        
         vit = "visual.proj" in state_dict
 
         if vit:
@@ -96,5 +150,14 @@ class CLIP4Clip(nn.Module):
                 del state_dict[key]
 
         convert_weights(model)
+        
+        ## store variable for temporal module
+        self.num_temporal_embeddings = context_length
+        self.transformer_width = transformer_width
+        self.heads = transformer_heads
+        
+        # if self.temporal_mode is TemporalMode.TRANSFORMER:
+        #     self.
+        #     self.transformer_init_state_dict = model.transformer.state_dict()
         
         return model
