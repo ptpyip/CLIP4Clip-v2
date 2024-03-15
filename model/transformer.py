@@ -5,39 +5,6 @@ from collections import OrderedDict
 
 from .modules import QuickGELU, LayerNorm
 
-class TemporalTransformer(nn.Module):
-    def __init__(self, 
-        width: int, 
-        layers: int, 
-        heads: int,
-        hidden_size: int,
-        num_temporal_embeddings:int, 
-    ):
-        self.temporal_embeddings = nn.Embedding(
-            num_temporal_embeddings, hidden_size
-        )
-        # self.transformer == nn.TransformerEncoder
-        self.transformer = TransformerEncoder(width, layers, heads)
-        
-    def forward(self, x: torch.Tensor, attn_mask):
-        seq_length = x.size(1)
-        
-        extended_attn_mask = (1.0 - attn_mask.unsqueeze(1)) * -1000000.0
-        extended_attn_mask = extended_attn_mask.expand(-1, attn_mask.size(1), -1)
-        
-        temporal_ids = torch.arange(seq_length, dtype=torch.long, device=x.device)
-        temporal_embeddings = self.temporal_embeddings(
-            temporal_ids.unsqueeze(0).expand(x.size(0), -1)
-        )
-        
-        temp = x + temporal_embeddings
-        out = self.transformer(
-            temp.permute(1, 0, 2),              # NLD -> LND
-            extended_attn_mask
-        ).permute(1, 0, 2)                      # LND -> NLD
-        
-        return out + x 
-
 class ResidualAttentionBlock(nn.Module):
     def __init__(self, d_model: int, n_head: int):
         super().__init__()
