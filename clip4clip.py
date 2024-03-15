@@ -1,0 +1,1 @@
+"""Python module for using CLIP4Clip (similar to clip module in clip package)"""
