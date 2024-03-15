@@ -56,6 +56,55 @@ class CLIP4Clip(nn.Module):
         self.norm = lambda x: x / x.norm(dim=-1, keepdim=True)
     
         return
+    
+    
+    def mean_pooling(self, feature, video_mask):
+        feature = self.norm(feature) if self.training else feature
+        
+        video_mask_un = video_mask.to(dtype=torch.float).unsqueeze(-1)
+        feature = feature * video_mask_un
+        
+        video_mask_un_sum = torch.sum(video_mask_un, dim=1, dtype=torch.float)
+        video_mask_un_sum[video_mask_un_sum == 0.] = 1.
+        temporal_feature = torch.sum(feature, dim=1) / video_mask_un_sum
+        
+        return temporal_feature
+    
+    
+    # def seq_trans(self, feature, video_mask):
+    #     temporal_feature = self.temporal_trans(feature, video_mask)
+    #     temporal_feature = self.norm(temporal_feature)
+        
+    #     return self.mean_pooling(temporal_feature, video_mask)          # aggregate mean feature
+    
+    def forward_temporal(self, feature, video_mask):
+        if self.temporal_mode is TemporalMode.TRANSFORMER:
+            feature = self.temporal_trans(feature, video_mask)
+        
+        return self.mean_pooling(feature, video_mask) 
+    
+    def forward_visual(self, frames, video_mask, shaped=False):
+        """
+        here in og CLIP4Clip implementation they apply layernorm and projection to entire tans output.
+        """
+        bs = video_mask.size(0)
+        visual_feature = self.clip.encode_image(frames).float()
+        visual_feature = visual_feature.view(
+            bs, -1, visual_feature.size(-1)
+        )
+        
+        temporal_feature = self.forward_temporal(visual_feature, video_mask)
+        return self.norm(temporal_feature) if self.training else temporal_feature
+    
+    def forward_text(self, text):
+        bs = text.size(0)
+        
+        text_feature = self.clip.encode_text(text).float()
+        text_feature = text_feature.view(
+            bs, -1, text_feature.size(-1)
+        ).squeeze(1)
+        
+        return self.norm(text_feature) if self.training else text_feature
         
         
     def _init_temporal_trans(self):          
