@@ -1,17 +1,13 @@
 import os
-from enum import Enum
 
 import torch
 from torch import nn
 
 from .modules import CrossEn
 from .pretrainedCLIP import PreTrainedClip
-from .transfromer import TemporalTransformer
 
-class TemporalMode(Enum):
-    MEAN_POOLING = 0
-    TRANSFORMER = 1
-    # CrossTransformer = 2        # not used.
+from . import temporal 
+from .temporal import TemporalMode, TemporalTransformer
 
 def build_model(state_dict: dict):
     """ build model from a given state dict
@@ -28,16 +24,17 @@ class CLIP4Clip(PreTrainedClip):
         num_temporal_hidden_layers = 4,
         max_temporal_embeddings = 128,
     ) -> None:
-        super("CLIP4Clip", self).__init__(clip_name)                                ## init clip
+        super(CLIP4Clip, self).__init__(clip_name)                                ## init clip
        
         self.temporal_mode = temporal_mode 
         self.hidden_size = hidden_size
         self.num_temporal_hidden_layers = num_temporal_hidden_layers
         
-        self.temporal_trans = None
-        if temporal_mode == TemporalMode.TRANSFORMER:
-            self.temporal_trans = self._init_temporal(max_temporal_embeddings)
-            assert self.num_temporal_embeddings <= max_temporal_embeddings
+        self.temporal = self._init_temporal(max_temporal_embeddings)
+        # self.temporal_trans = None
+        # if temporal_mode == TemporalMode.TRANSFORMER:
+        #     self.temporal_trans = self._init_temporal(max_temporal_embeddings)
+        #     assert self.num_temporal_embeddings <= max_temporal_embeddings
         
         self.loss_fn = CrossEn()
         self.norm = lambda x: x / x.norm(dim=-1, keepdim=True)
@@ -66,15 +63,15 @@ class CLIP4Clip(PreTrainedClip):
             bs, -1, frames.size(-1)
         )
         
-        temporal_feature = self.forward_temporal(frames, video_mask)
+        temporal_feature = self.temporal(frames, video_mask)
         return self.norm(temporal_feature) if self.training else temporal_feature
     
     
-    def forward_temporal(self, feature, video_mask):
-        if self.temporal_mode is TemporalMode.TRANSFORMER:
-            feature = self.temporal_trans(feature, video_mask)
+    # def forward_temporal(self, feature, video_mask):
+    #     if self.temporal_mode is TemporalMode.TRANSFORMER:
+    #         feature = self.temporal_trans(feature, video_mask)
         
-        return self.mean_pooling(feature, video_mask) 
+    #     return self.mean_pooling(feature, video_mask) 
     
     def mean_pooling(self, feature, video_mask):
         feature = self.norm(feature) if self.training else feature
@@ -98,7 +95,10 @@ class CLIP4Clip(PreTrainedClip):
         return retrieve_logits
     
     
-    def _init_temporal_trans(self, max_temporal_embeddings) -> TemporalTransformer:          
+    def _init_temporal(self, max_temporal_embeddings) -> TemporalTransformer:         
+        if self.temporal_mode is TemporalMode.MEAN_POOLING:
+            return temporal.MeanPooling()
+                    
         self.num_temporal_embeddings = self.positional_embedding.shape[0]
         self.transformer_width = self.clip.ln_final.weight.shape.shape[0]
         self.heads = self.transformer_width // 64
