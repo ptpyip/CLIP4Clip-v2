@@ -1,0 +1,31 @@
+model:
+    name: meanP-ViT-B/16
+    clip:
+        name: ViT-B/16
+        pretrained: true
+        freeze_layer_num: 0 
+        # not specified => using pretrained value
+    image:
+        # overriding pre-trained
+        input_resolution: 224       # as pre-train
+    text:
+        # overriding pre-trained
+        context_length: &context_length 
+            77                      # as pre-train
+        tokenizer: clip             # use clip.tokenizer
+    temporal:
+        mode: meanP
+        max_num_frame: *context_length
+        fps: &fps  1
+        # hidden_size: 512,
+        # num_hidden_layers: = 4,
+        # max_um_embeddings: = 128,
+
+train:
+    epochs: 5
+    lr: 1e-4
+    coef_lr: 1e-3
+    batch_size: 128
+    n_display: 50
+    
+
