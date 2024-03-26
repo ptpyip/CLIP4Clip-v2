@@ -1,1 +1,1 @@
-from clip4clip import *
+from .clip4clip import *
