@@ -21,14 +21,15 @@ class PreTrainedClip(nn.Module):
     def __init__(self,
         clip_name,
     ) -> None:
-        super("PreTrainedClip", self).__init__()
-        self.clip = self._init_clip(clip_name)
+        super(PreTrainedClip, self).__init__()
+        self.clip = self.init_clip(clip_name)
     
         return
                 
     def init_clip(self, model_name):
         model_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), 
+            # os.path.dirname(os.path.abspath(__file__)), 
+            os.path.expanduser("~/.cache/clip"),
             CLIP_NAMES[model_name] if model_name in CLIP_NAMES else "ViT-B-32.pt"
         )
 

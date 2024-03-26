@@ -65,35 +65,7 @@ class CLIP4Clip(PreTrainedClip):
         
         temporal_feature = self.temporal(frames, video_mask)
         return self.norm(temporal_feature) if self.training else temporal_feature
-    
-    
-    # def forward_temporal(self, feature, video_mask):
-    #     if self.temporal_mode is TemporalMode.TRANSFORMER:
-    #         feature = self.temporal_trans(feature, video_mask)
         
-    #     return self.mean_pooling(feature, video_mask) 
-    
-    def mean_pooling(self, feature, video_mask):
-        feature = self.norm(feature) if self.training else feature
-        
-        video_mask_un = video_mask.to(dtype=torch.float).unsqueeze(-1)
-        feature = feature * video_mask_un
-        
-        video_mask_un_sum = torch.sum(video_mask_un, dim=1, dtype=torch.float)
-        video_mask_un_sum[video_mask_un_sum == 0.] = 1.
-        temporal_feature = torch.sum(feature, dim=1) / video_mask_un_sum
-        
-        return temporal_feature
-    
-    def get_similarity_logits(self, text_feature, video_feature, attention_mask, video_mask, shaped=False, loose_type=False):
-        # if shaped is False:
-        #     attention_mask = attention_mask.view(-1, attention_mask.shape[-1])
-        #     video_mask = video_mask.view(-1, video_mask.shape[-1])
-
-        logit_scale = self.clip.logit_scale.exp()
-        retrieve_logits = logit_scale * torch.matmul(text_feature, video_feature.T)
-        return retrieve_logits
-    
     
     def _init_temporal(self, max_temporal_embeddings) -> TemporalTransformer:         
         if self.temporal_mode is TemporalMode.MEAN_POOLING:
