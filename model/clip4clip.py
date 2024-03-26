@@ -25,6 +25,8 @@ class CLIP4Clip(PreTrainedClip):
         max_temporal_embeddings = 128,
     ) -> None:
         super(CLIP4Clip, self).__init__(clip_name)                                ## init clip
+        self.input_resolution = self.clip.visual.input_resolution               # for transform(): Image -> Tensor, with right resolution
+        self.max_num_frame = self.clip.context_length                           # ensure input not exceed temporal context length
        
         self.temporal_mode = temporal_mode 
         self.hidden_size = hidden_size
