@@ -31,5 +31,13 @@ def load(path: str, model_name="meanP-ViT-B/16", device="cpu"):
     
     return model, transform(model.input_resolution)
 
+
+def test_load():
+    model, transform = load(
+        "/csproject/dan3/downloads/ckpts/meanP-ViT-B-16.bin.3",
+        device="cuda"
+    )
+    print(model.max_num_frame)
+    
 if __name__ == "__main__":
-    print("Ok")
+    test_load()
