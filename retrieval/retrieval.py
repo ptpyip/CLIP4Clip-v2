@@ -4,6 +4,7 @@ import random
 import torch
 import numpy as np
 
+from .config import TaskConfig, DistributedConfig
 from utils import logging
 from utils.logging import logger
 
@@ -24,22 +25,31 @@ def set_torch_cuda(seed, local_rank):
     world_size = torch.distributed.get_world_size()
     rank = torch.distributed.get_rank()
     
-    return world_size, rank
+
+    distributed = DistributedConfig(world_size, rank)
+    return distributed
 
 
-def set_logger():
+def set_logger(output_dir):
     # global logger
 
-    # if not os.path.exists(output_dir):
-    #     os.makedirs(output_dir, exist_ok=True)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir, exist_ok=True)
 
-    # # logger = logging.get_logger(os.path.join(output_dir, "log.txt"))
-    # logging.set_logger(os.path.join(output_dir, "log.txt"))
+    # logger = logging.get_logger(os.path.join(output_dir, "log.txt"))
+    logging.set_logger(os.path.join(output_dir, "log.txt"))
+     
+
+def retrieval_task(config: TaskConfig):
+    local_rank = config.local_rank
+    distributed = set_torch_cuda(config.seed, local_rank) 
     
-    # if local_rank == 0:
-    #     logger.info("Effective parameters:")
-    #     for key in sorted(args.__dict__):
-    #         logger.info("  <<< {}: {}".format(key, args.__dict__[key]))
-
-    # return args
-    raise NotImplementedError
+   
+    if local_rank == 0:
+        parameters = config.dict().update(distributed.dict())
+        logger.info("Effective parameters:")
+        for key in sorted(parameters):
+            logger.info("  <<< {}: {}".format(key, parameters.__dict__[key])) 
+    
+    
+    
