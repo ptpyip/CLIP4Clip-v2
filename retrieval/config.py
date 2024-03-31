@@ -10,6 +10,12 @@ class TrainConfig(BaseSettings):
     coef_lr: float
     batch_size: int
     n_display: int
+
+    
+class EvalConfig(BaseSettings):
+    batch_size: int
+    n_display: int
+    
     
 class DistributedConfig(BaseSettings):
     world_size: int
@@ -21,5 +27,6 @@ class TaskConfig(BaseSettings):
     local_rank: int             # specified in args (controlled by torch.distributed.launch )
     model: ModelConfig
     train: TrainConfig
+    eval: EvalConfig
 
     
