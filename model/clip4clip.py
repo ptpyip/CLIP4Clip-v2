@@ -21,8 +21,7 @@ def build_model(model_name, state_dict: dict = {}):
     """
     assert model_name in MODELS
     
-    clip_name = model_name.split("-", 1)[1]
-    model = CLIP4Clip(clip_name)
+    model = CLIP4Clip(model_name)
     if state_dict != {}:
         model.load_state_dict(state_dict)
     return model.float()
@@ -31,12 +30,14 @@ def build_model(model_name, state_dict: dict = {}):
 class CLIP4Clip(PreTrainedClip):
     CLIP_NAME = "ViT-B/32"
     def __init__(self,
-        clip_name=CLIP_NAME,
+        name,
         temporal_mode: TemporalMode = TemporalMode.MEAN_POOLING,
         hidden_size = 512,
         num_temporal_hidden_layers = 4,
         max_temporal_embeddings = 128,
     ) -> None:
+
+        clip_name = name.split("-", 1)[1]
         super(CLIP4Clip, self).__init__(clip_name)                                ## init clip
         self.input_resolution = self.clip.visual.input_resolution               # for transform(): Image -> Tensor, with right resolution
         self.max_num_frame = self.clip.context_length                           # ensure input not exceed temporal context length
