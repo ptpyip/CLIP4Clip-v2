@@ -1,5 +1,6 @@
 import math
 import random
+import os.path
 from typing import Tuple
 
 import torch
@@ -30,51 +31,15 @@ def clip_grad(model: nn.Module, clip_norm):
 def init_dataloaders() -> Tuple[DataLoader, int, DistributedSampler]:
     raise NotImplementedError
     return
-    
-def init_optimizer(
-    model, lr, coef_lr, num_optimization_steps, warmup=-1, weight_decay = 0.2
-):
 
-    if hasattr(model, 'module'):
-        model = model.module
 
-    param_optimizer = list(model.named_parameters())
-    no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
-
-    decay_param_tp = [(n, p) for n, p in param_optimizer if not any(nd in n for nd in no_decay)]
-    no_decay_param_tp = [(n, p) for n, p in param_optimizer if any(nd in n for nd in no_decay)]
-
-    decay_clip_param_tp = [(n, p) for n, p in decay_param_tp if "clip." in n]
-    decay_noclip_param_tp = [(n, p) for n, p in decay_param_tp if "clip." not in n]
-
-    no_decay_clip_param_tp = [(n, p) for n, p in no_decay_param_tp if "clip." in n]
-    no_decay_noclip_param_tp = [(n, p) for n, p in no_decay_param_tp if "clip." not in n]
-
-    optimizer_grouped_parameters = [
-        {'params': [p for n, p in decay_clip_param_tp], 'weight_decay': weight_decay, 'lr': lr * coef_lr},
-        {'params': [p for n, p in decay_noclip_param_tp], 'weight_decay': weight_decay},
-        {'params': [p for n, p in no_decay_clip_param_tp], 'weight_decay': 0.0, 'lr': lr * coef_lr},
-        {'params': [p for n, p in no_decay_noclip_param_tp], 'weight_decay': 0.0}
-    ]
-
-    optimizer = AdamW(
-        params=optimizer_grouped_parameters, lr=lr,
-        betas=(0.9, 0.98), eps=1e-6,
-        weight_decay=weight_decay,
-        # max_grad_norm=1.0
-    )
-    scheduler = LambdaLR(optimizer,
-        lr_lambda=lambda cur_iter: lr_cosine_with_warmup(
-            cur_iter/num_optimization_steps, warmup
-        )
-    )
-
-    return optimizer, scheduler
+def train_epoch():
+   ... 
     
 
 def train(
     model, config: TrainConfig, data_config: DataConfig, local_rank, 
-    resume_ckpt_path=None
+    resume_ckpt_path=None, save_dir=None
 ):
     sampler: DistributedSampler
     dataloader, sample_size, sampler = init_dataloaders(data_config)
@@ -118,8 +83,9 @@ def train(
         loss, global_step = train_epoch()
         if local_rank == 0:
             logger.info("Epoch %d/%s Finished, Train Loss: %f", epoch + 1, config.epochs, loss)
-
-            # output_model_file = save_model(epoch, config, model, optimizer, loss, type_name="")
+            
+            if save_dir is not None:
+                output_model_file = save_model(model, save_dir, epoch, optimizer, loss)
 
             ## Run on val dataset, this process is *TIME-consuming*.
             # logger.info("Eval on val dataset")
@@ -134,5 +100,66 @@ def train(
     # clip_grad_norm_()
     # step
     
-def train_epoch():
-    ...    
+    
+def init_optimizer(
+    model, lr, coef_lr, num_optimization_steps, warmup=-1, weight_decay = 0.2
+):
+
+    if hasattr(model, 'module'):
+        model = model.module
+
+    param_optimizer = list(model.named_parameters())
+    no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
+
+    decay_param_tp = [(n, p) for n, p in param_optimizer if not any(nd in n for nd in no_decay)]
+    no_decay_param_tp = [(n, p) for n, p in param_optimizer if any(nd in n for nd in no_decay)]
+
+    decay_clip_param_tp = [(n, p) for n, p in decay_param_tp if "clip." in n]
+    decay_noclip_param_tp = [(n, p) for n, p in decay_param_tp if "clip." not in n]
+
+    no_decay_clip_param_tp = [(n, p) for n, p in no_decay_param_tp if "clip." in n]
+    no_decay_noclip_param_tp = [(n, p) for n, p in no_decay_param_tp if "clip." not in n]
+
+    optimizer_grouped_parameters = [
+        {'params': [p for n, p in decay_clip_param_tp], 'weight_decay': weight_decay, 'lr': lr * coef_lr},
+        {'params': [p for n, p in decay_noclip_param_tp], 'weight_decay': weight_decay},
+        {'params': [p for n, p in no_decay_clip_param_tp], 'weight_decay': 0.0, 'lr': lr * coef_lr},
+        {'params': [p for n, p in no_decay_noclip_param_tp], 'weight_decay': 0.0}
+    ]
+
+    optimizer = AdamW(
+        params=optimizer_grouped_parameters, lr=lr,
+        betas=(0.9, 0.98), eps=1e-6,
+        weight_decay=weight_decay,
+        # max_grad_norm=1.0
+    )
+    scheduler = LambdaLR(optimizer,
+        lr_lambda=lambda cur_iter: lr_cosine_with_warmup(
+            cur_iter/num_optimization_steps, warmup
+        )
+    )
+
+    return optimizer, scheduler
+
+
+def save_model(model, output_dir, epoch, optimizer, tr_loss):
+    # Only save the model it-self
+    model_to_save = model.module if hasattr(model, 'module') else model
+    
+    output_model_file = os.path.join(
+        output_dir, f"{model.name}.bin.{epoch}"
+    )
+    optimizer_state_file = os.path.join(
+        output_dir, f"{model.name}_opt.bin.{epoch}"
+    )
+    
+    torch.save(model_to_save.state_dict(), output_model_file)
+    torch.save({
+        'epoch': epoch,
+        'optimizer_state_dict': optimizer.state_dict(),
+        'loss': tr_loss,
+    }, optimizer_state_file)
+    
+    logger.info("Model saved to %s", output_model_file)
+    logger.info("Optimizer saved to %s", optimizer_state_file)
+    return output_model_file
