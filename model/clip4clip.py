@@ -83,6 +83,34 @@ class CLIP4Clip(PreTrainedClip):
         return self.norm(temporal_feature) if self.training else temporal_feature
         
     
+    def forward(self, text, video, video_mask) -> torch.Tensor:
+        text = text.view(-1, text.shape[-1])
+        video_mask = video_mask.view(-1, video_mask.shape[-1])
+
+        # T x 3 x H x W
+        video = torch.as_tensor(video).float()
+        b, pair, bs, ts, channel, h, w = video.shape
+        video = video.view(b * pair * bs * ts, channel, h, w)
+        
+        text_feature = self.forward_text(text)
+        video_feature = self.forward_visual(video, video_mask)
+
+        ## assume training
+        # if not self.training:
+        #     return None
+        
+        loss = 0.
+        sim_matrix, *_tmp = self.get_similarity_logits(
+            text_feature, video_feature
+        )
+        
+        sim_loss1 = self.loss_fn(sim_matrix)
+        sim_loss2 = self.loss_fn(sim_matrix.T)
+        sim_loss = (sim_loss1 + sim_loss2) / 2
+        loss += sim_loss
+
+        return loss
+    
     def _init_temporal(self, max_temporal_embeddings) -> TemporalTransformer:         
         if self.temporal_mode is TemporalMode.MEAN_POOLING:
             return temporal.MeanPooling()
