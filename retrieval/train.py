@@ -1,5 +1,5 @@
 import math
-import random
+import time
 import os.path
 from typing import Tuple
 
@@ -7,15 +7,17 @@ import torch
 import numpy as np
 
 from torch import nn
-from torch.optim import AdamW
+from torch.optim import Optimizer, AdamW
 from torch.optim.lr_scheduler import LambdaLR
 # from torch.nn.utils.clip_grad import clip_grad_norm_
 
 from clip.clip import _transform as transform
 
 from .config import *
-from utils import logging
-from utils.logging import logger
+from .utils import logging
+from .utils.logging import logger
+
+from ..model import CLIP4Clip
 
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
@@ -33,12 +35,66 @@ def init_dataloaders() -> Tuple[DataLoader, int, DistributedSampler]:
     return
 
 
-def train_epoch():
-   ... 
+def train_epoch(
+    model: CLIP4Clip, dataloader: DataLoader, 
+    optimizer: Optimizer, scheduler: LambdaLR, 
+    config: TrainConfig, global_step, train_log,  
+    device, local_rank, n_gpu=0
+):
+    torch.cuda.empty_cache() 
+    model.train()
+   
+    
+    total_loss = 0.
+    start_time = time.time()
+    log_step = config.n_display
+    gradient_accumulation_steps = config.gradient_accumulation_steps 
+    
+    for step, batch in enumerate(dataloader, start=1):
+        if n_gpu == 1:
+            # multi-gpu does scattering it-self
+            batch = (t.to(device=device, non_blocking=True) for t in batch)
+        
+        text, video, video_mask = batch
+        loss: torch.Tensor = model(text, video, video_mask)
+        
+        if n_gpu > 1:
+            loss = loss.mean()                          # average on multi-gpu.
+        if gradient_accumulation_steps > 1:
+            loss = loss / gradient_accumulation_steps
+            
+        loss.backward()
+        total_loss += loss.item()
+        
+        ## skip if not enough steps
+        if step % gradient_accumulation_steps == 0:
+            ## update optimizer and lr
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            scheduler.step() 
+            optimizer.step()
+            optimizer.zero_grad()
+            
+            # https://github.com/openai/CLIP/issues/46
+            if hasattr(model, 'module'):
+                torch.clamp_(model.module.clip.logit_scale.data, max=np.log(100))
+            else:
+                torch.clamp_(model.clip.logit_scale.data, max=np.log(100))
+                
+            global_step += 1
+            if global_step % log_step == 0 and local_rank == 0:
+                lr = f"{scheduler.get_lr():.9f}"
+                time_per_epoch = (time.time() - start_time) / (log_step * gradient_accumulation_steps)
+                train_log(step, lr, loss, time_per_epoch)
+                
+                start_time = time.time()
+   
+    total_loss = total_loss / len(dataloader)
+    return total_loss, global_step 
     
 
 def train(
-    model, config: TrainConfig, data_config: DataConfig, local_rank, 
+    model, config: TrainConfig, data_config: DataConfig, 
+    device, local_rank, n_gpu=0,
     resume_ckpt_path=None, save_dir=None
 ):
     sampler: DistributedSampler
@@ -66,7 +122,7 @@ def train(
         logger.info("  Num steps = %d", num_optimization_steps * config.gradient_accumulation_steps)
 
     start_epoch = 0
-    best_score = 0.00001
+    best_score = 1e-9
     best_output_model_file = "None"
     
     ### resume optimizer state besides loss to continue train
@@ -80,10 +136,23 @@ def train(
     for epoch in range(start_epoch, config.epochs):
         sampler.set_epoch(epoch)
         
-        loss, global_step = train_epoch()
-        if local_rank == 0:
+        train_log = lambda step, lr, loss, time_per_epoch : logger.info(
+            ", ".join((
+               f"Epoch: {epoch}/{config.epochs}",
+               f"Step: {step}/{config.batch_size}",
+               f"Lr: {lr}", f"Loss: {loss}", f"Time/step: {time_per_epoch}" 
+            ))
+            # f"Epoch: {epoch}/{config.epochs}, Step: {step}/{config.batch_size}, Lr: {lr}, Loss: {loss}, Time/step: {time}"
+        )
+        
+        loss, global_step = train_epoch(
+            model, dataloader, optimizer, scheduler, config,
+            global_step, train_log, device, local_rank, n_gpu
+        )
+        
+        if local_rank ==0:
             logger.info("Epoch %d/%s Finished, Train Loss: %f", epoch + 1, config.epochs, loss)
-            
+        
             if save_dir is not None:
                 output_model_file = save_model(model, save_dir, epoch, optimizer, loss)
 
@@ -96,10 +165,7 @@ def train(
             #     best_score = R1
             #     best_output_model_file = output_model_file
             # logger.info("The best model is: {}, the R1 is: {:.4f}".format(best_output_model_file, best_score))
-        
-    # clip_grad_norm_()
-    # step
-    
+            
     
 def init_optimizer(
     model, lr, coef_lr, num_optimization_steps, warmup=-1, weight_decay = 0.2
