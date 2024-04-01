@@ -9,10 +9,23 @@ from .pretrainedCLIP import PreTrainedClip
 from . import temporal 
 from .temporal import TemporalMode, TemporalTransformer
 
-def build_model(state_dict: dict):
+MODELS = [
+    "meanP-ViT-B/16","meanP-ViT-B/32",
+    # "maxP-ViT-B/16","maxP-ViT-B/32",
+    # "Trans-ViT-B/16","Trans-ViT-B/32"
+]
+
+def build_model(model_name, state_dict: dict = {}):
     """ build model from a given state dict
     if state_dict is {} => build from empty
     """
+    assert model_name in MODELS
+    
+    clip_name = model_name.split("-", 1)[1]
+    model = CLIP4Clip(clip_name)
+    if state_dict != {}:
+        model.load_state_dict(state_dict)
+    return model.float()
     
     
 class CLIP4Clip(PreTrainedClip):
