@@ -4,10 +4,17 @@ from torch.utils.data import DataLoader
 import numpy as np
 
 from ..clip4clip import CLIP4Clip
+from .utils import metrics
 from .utils.logging import logger
 from .utils.distributed import parallel_apply
 from .dataloader import RetrievalDataLoader
 
+def eval_epoch(model, dataloader, device, n_gpu):  
+    assert hasattr(dataloader.dataset, 'multi_sentence_query')  
+    if dataloader.dataset.multi_sentence_query:
+        return multi_sentence_eval_epoch(model, dataloader, device, n_gpu)
+    else:
+        return single_sentence_eval_epoch(model, dataloader, device, n_gpu)
         
 def single_sentence_eval_epoch(model: CLIP4Clip, dataloader: DataLoader, device, n_gpu):
     model = model.to(device) 
@@ -32,16 +39,14 @@ def single_sentence_eval_epoch(model: CLIP4Clip, dataloader: DataLoader, device,
         sim_matrix = compute_similarity(model, batch_sequence_outputs, batch_visual_outputs, n_gpu)
         logger.info("sim matrix size: {}, {}".format(sim_matrix.shape[0], sim_matrix.shape[1]))
         
-        tv_metrics = compute_metrics(sim_matrix)
-        vt_metrics = compute_metrics(sim_matrix.T)
+        tv_metrics = metrics.compute_metrics(sim_matrix)
+        vt_metrics = metrics.compute_metrics(sim_matrix.T)
         logger.info('\t Length-T: {}, Length-V:{}'.format(len(sim_matrix), len(sim_matrix[0])))
         
     return tv_metrics, vt_metrics 
 
 def multi_sentence_eval_epoch(model: CLIP4Clip, dataloader: RetrievalDataLoader, device, n_gpu):
     model = model.to(device) 
-    
-    assert hasattr(dataloader.dataset, 'multi_sentence_query') 
     assert dataloader.dataset.multi_sentence_query 
     
     cut_off_points_ = dataloader.dataset.cut_off_points         # used to tag the label when calculate the metric
@@ -94,9 +99,9 @@ def multi_sentence_eval_epoch(model: CLIP4Clip, dataloader: RetrievalDataLoader,
                 format(sim_matrix.shape[0], sim_matrix.shape[1], sim_matrix.shape[2])
         )
 
-        tv_metrics = tensor_text_to_video_metrics(sim_matrix)
-        vt_metrics = compute_metrics(tensor_video_to_text_sim(sim_matrix)
-        logger.info('\t Length-T: {}, Length-V:{}'.format(len(sim_matrix), len(sim_matrix[0]))))
+        tv_metrics = metrics.tensor_text_to_video_metrics(sim_matrix)
+        vt_metrics = metrics.compute_metrics(tensor_video_to_text_sim(sim_matrix))
+        logger.info('\t Length-T: {}, Length-V:{}'.format(len(sim_matrix), len(sim_matrix[0])))
         
     return tv_metrics, vt_metrics 
     
@@ -157,3 +162,12 @@ def _compute_similarity_on_single_gpu(
         sim_matrix.append(np.concatenate(tuple(row), axis=-1))
         
     return sim_matrix
+
+def tensor_video_to_text_sim(sim_tensor):
+    if not torch.is_tensor(sim_tensor):
+      sim_tensor = torch.tensor(sim_tensor)
+    # Code to avoid nans
+    sim_tensor[sim_tensor != sim_tensor] = float('-inf')
+    # Forms a similarity matrix for use with rank at k
+    values, _ = torch.max(sim_tensor, dim=1, keepdim=True)
+    return torch.squeeze(values).T
