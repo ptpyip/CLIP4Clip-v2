@@ -1,22 +1,49 @@
+import numpy as np
+from functools import partial
+from typing import Callable, Optional
+
 import torch
 from torch.utils.data import DataLoader
-
-import numpy as np
 
 from ..clip4clip import CLIP4Clip
 from .utils import metrics
 from .utils.logging import logger
 from .utils.distributed import parallel_apply
-from .dataloader import RetrievalDataLoader
+from .config import DataConfig
+from .dataloader import RetrievalDataLoader, init_dataloader
 
-def eval_epoch(model, dataloader, device, n_gpu):  
+# EvalEpochCallable = Callable[
+#     [CLIP4Clip, torch.device, int, Optional[bool]], tuple[dict,dict]
+# ]
+
+def __eval_epoch(model, dataloader, device, n_gpu):  
     assert hasattr(dataloader.dataset, 'multi_sentence_query')  
     if dataloader.dataset.multi_sentence_query:
         return multi_sentence_eval_epoch(model, dataloader, device, n_gpu)
     else:
         return single_sentence_eval_epoch(model, dataloader, device, n_gpu)
+    
+def get_eval_epoch(config: DataConfig, local_rank):
+    dataloader, sample_size, _ = init_dataloader(config, mode="test")
+    
+    if local_rank == 0:
+        logger.info("***** Running test *****")
+        logger.info("  Num examples = %d", sample_size)
+        logger.info("  Batch size = %d", config.batch_size)
+        logger.info("  Num steps = %d", len(dataloader))
         
-def single_sentence_eval_epoch(model: CLIP4Clip, dataloader: DataLoader, device, n_gpu):
+    assert hasattr(dataloader.dataset, 'multi_sentence_query')  
+    if dataloader.dataset.multi_sentence_query:
+        return partial(multi_sentence_eval_epoch, dataloader=dataloader)
+        # return lambda model, device, n_gpu: multi_sentence_eval_epoch(model, dataloader, device, n_gpu)
+    else:
+        return partial(single_sentence_eval_epoch, dataloader=dataloader)
+        # return lambda model, device, n_gpu: single_sentence_eval_epoch(model, dataloader, device, n_gpu)      
+        
+def single_sentence_eval_epoch(
+    model: CLIP4Clip, dataloader: DataLoader, 
+    device, n_gpu, video_to_text_eval=False
+):
     model = model.to(device) 
     model.eval()
     
@@ -40,12 +67,23 @@ def single_sentence_eval_epoch(model: CLIP4Clip, dataloader: DataLoader, device,
         logger.info("sim matrix size: {}, {}".format(sim_matrix.shape[0], sim_matrix.shape[1]))
         
         tv_metrics = metrics.compute_metrics(sim_matrix)
-        vt_metrics = metrics.compute_metrics(sim_matrix.T)
+        vt_metrics = metrics.compute_metrics(sim_matrix.T) if video_to_text_eval else {}
         logger.info('\t Length-T: {}, Length-V:{}'.format(len(sim_matrix), len(sim_matrix[0])))
-        
+       
+    logger.info("Text-to-Video:")
+    logger.info(
+        '\t>>>  R@1: {:.1f} - R@5: {:.1f} - R@10: {:.1f} - Median R: {:.1f} - Mean R: {:.1f}'.
+            format(tv_metrics['R1'], tv_metrics['R5'], tv_metrics['R10'], tv_metrics['MR'], tv_metrics['MeanR'])
+    )
+    
+    if video_to_text_eval:
+        logger.info("Video-to-Text:")
+        logger.info('\t>>>  V2T$R@1: {:.1f} - V2T$R@5: {:.1f} - V2T$R@10: {:.1f} - V2T$Median R: {:.1f} - V2T$Mean R: {:.1f}'.
+                    format(vt_metrics['R1'], vt_metrics['R5'], vt_metrics['R10'], vt_metrics['MR'], vt_metrics['MeanR']))
+
     return tv_metrics, vt_metrics 
 
-def multi_sentence_eval_epoch(model: CLIP4Clip, dataloader: RetrievalDataLoader, device, n_gpu):
+def multi_sentence_eval_epoch(model: CLIP4Clip, dataloader: RetrievalDataLoader, device, n_gpu, video_to_text_eval=False):
     model = model.to(device) 
     assert dataloader.dataset.multi_sentence_query 
     
@@ -100,9 +138,20 @@ def multi_sentence_eval_epoch(model: CLIP4Clip, dataloader: RetrievalDataLoader,
         )
 
         tv_metrics = metrics.tensor_text_to_video_metrics(sim_matrix)
-        vt_metrics = metrics.compute_metrics(tensor_video_to_text_sim(sim_matrix))
+        vt_metrics = metrics.compute_metrics(tensor_video_to_text_sim(sim_matrix))  if video_to_text_eval else {}
         logger.info('\t Length-T: {}, Length-V:{}'.format(len(sim_matrix), len(sim_matrix[0])))
         
+    logger.info("Text-to-Video:")
+    logger.info(
+        '\t>>>  R@1: {:.1f} - R@5: {:.1f} - R@10: {:.1f} - Median R: {:.1f} - Mean R: {:.1f}'.
+            format(tv_metrics['R1'], tv_metrics['R5'], tv_metrics['R10'], tv_metrics['MR'], tv_metrics['MeanR'])
+    )
+    
+    if video_to_text_eval:
+        logger.info("Video-to-Text:")
+        logger.info('\t>>>  V2T$R@1: {:.1f} - V2T$R@5: {:.1f} - V2T$R@10: {:.1f} - V2T$Median R: {:.1f} - V2T$Mean R: {:.1f}'.
+                    format(vt_metrics['R1'], vt_metrics['R5'], vt_metrics['R10'], vt_metrics['MR'], vt_metrics['MeanR']))
+
     return tv_metrics, vt_metrics 
     
 

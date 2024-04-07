@@ -1,7 +1,6 @@
 import math
 import time
 import os.path
-from typing import Tuple
 
 import torch
 import numpy as np
@@ -17,6 +16,8 @@ from clip.clip import _transform as transform
 from .config import *
 from .utils import logging
 from .utils.logging import logger
+# from .eval import EvalEpochCallable
+from .dataloader import  init_dataloader
 
 from ..model import CLIP4Clip
 
@@ -28,10 +29,6 @@ def lr_cosine_with_warmup(t, warmup=0.002):
 
 def clip_grad(model: nn.Module, clip_norm):
     torch.nn.utils.clip_grad.clip_grad_norm_(model.parameters(), clip_norm)
-
-def init_dataloaders() -> Tuple[DataLoader, int, DistributedSampler]:
-    raise NotImplementedError
-    return
 
 
 def train_epoch(
@@ -89,12 +86,12 @@ def train_epoch(
     
 
 def train(
-    model, config: TrainConfig, data_config: DataConfig, 
-    device, local_rank, n_gpu=0,
+    model, config: TrainConfig, data_config: DataConfig,
+    eval_epoch, device, local_rank, n_gpu=0,
     resume_ckpt_path=None, save_dir=None
 ):
     sampler: DistributedSampler
-    dataloader, sample_size, sampler = init_dataloaders(data_config)
+    dataloader, sample_size, sampler = init_dataloader(data_config, mode="train")
     
     assert len(dataloader) == config.batch_size 
     num_optimization_steps = (
@@ -146,21 +143,19 @@ def train(
             global_step, train_log, device, local_rank, n_gpu
         )
         
-        if local_rank ==0:
+        if local_rank == 0:
             logger.info("Epoch %d/%s Finished, Train Loss: %f", epoch + 1, config.epochs, loss)
         
             if save_dir is not None:
                 output_model_file = save_model(model, save_dir, epoch, optimizer, loss)
 
-            ## Run on val dataset, this process is *TIME-consuming*.
-            # logger.info("Eval on val dataset")
-            # R1 = eval_epoch(args, model, val_dataloader, device, n_gpu)
-
-            # R1 = eval_epoch(args, model, test_dataloader, device, n_gpu)
-            # if best_score <= R1:
-            #     best_score = R1
-            #     best_output_model_file = output_model_file
-            # logger.info("The best model is: {}, the R1 is: {:.4f}".format(best_output_model_file, best_score))
+            
+            tv_metrics, _ = eval_epoch(model, device, n_gpu, video_to_text_eval=False)                               # type: ignore
+            R1 = tv_metrics['R1']
+            if best_score <= R1:
+                best_score = R1
+                best_output_model_file = output_model_file
+            logger.info("The best model is: {}, the R1 is: {:.4f}".format(best_output_model_file, best_score))
             
     
 def init_optimizer(
