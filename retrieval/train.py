@@ -9,7 +9,8 @@ import numpy as np
 from torch import nn
 from torch.optim import Optimizer, AdamW
 from torch.optim.lr_scheduler import LambdaLR
-# from torch.nn.utils.clip_grad import clip_grad_norm_
+from torch.utils.data import DataLoader
+from torch.utils.data.distributed import DistributedSampler
 
 from clip.clip import _transform as transform
 
@@ -19,9 +20,7 @@ from .utils.logging import logger
 
 from ..model import CLIP4Clip
 
-from torch.utils.data import DataLoader
-from torch.utils.data.distributed import DistributedSampler
-
+### Helpers
 def lr_cosine_with_warmup(t, warmup=0.002):
     if t < warmup:
         return t/warmup
@@ -69,16 +68,13 @@ def train_epoch(
         ## skip if not enough steps
         if step % gradient_accumulation_steps == 0:
             ## update optimizer and lr
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            clip_grad(model, 1.0)
             scheduler.step() 
             optimizer.step()
             optimizer.zero_grad()
             
             # https://github.com/openai/CLIP/issues/46
-            if hasattr(model, 'module'):
-                torch.clamp_(model.module.clip.logit_scale.data, max=np.log(100))
-            else:
-                torch.clamp_(model.clip.logit_scale.data, max=np.log(100))
+            torch.clamp_(model.clip.logit_scale.data, max=np.log(100))
                 
             global_step += 1
             if global_step % log_step == 0 and local_rank == 0:
@@ -106,14 +102,14 @@ def train(
          / config.gradient_accumulation_steps
     ) * config.epochs
     optimizer, scheduler = init_optimizer(
-        model, config, config.lr, config.coef_lr, 
+        model, config.lr, config.coef_lr, 
         num_optimization_steps, config.warmup_proportion
     ) 
     
-    model = torch.nn.parallel.DistributedDataParallel(
+    model = nn.parallel.DistributedDataParallel(
         model, device_ids=[local_rank], output_device=local_rank, 
         find_unused_parameters=True
-    )
+    ) 
     
     if local_rank == 0:
         logger.info("***** Running training *****")
@@ -146,7 +142,7 @@ def train(
         )
         
         loss, global_step = train_epoch(
-            model, dataloader, optimizer, scheduler, config,
+            model, dataloader, optimizer, scheduler, config,                    # type: ignore
             global_step, train_log, device, local_rank, n_gpu
         )
         
@@ -168,7 +164,7 @@ def train(
             
     
 def init_optimizer(
-    model, lr, coef_lr, num_optimization_steps, warmup=-1, weight_decay = 0.2
+    model, lr, coef_lr, num_optimization_steps, warmup: float =-1, weight_decay = 0.2
 ):
 
     if hasattr(model, 'module'):
