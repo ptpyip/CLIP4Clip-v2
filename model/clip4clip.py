@@ -7,7 +7,7 @@ from .modules import CrossEn
 from .pretrainedCLIP import PreTrainedClip
 
 from . import temporal 
-from .temporal import TemporalMode, TemporalTransformer
+from .temporal import TemporalMode, TemporalTransformer, BaseTemporalModule
 
 MODELS = [
     "meanP-ViT-B/16","meanP-ViT-B/32",
@@ -111,20 +111,28 @@ class CLIP4Clip(PreTrainedClip):
 
         return loss
     
-    def _init_temporal(self, max_temporal_embeddings) -> TemporalTransformer:         
+    def get_similarity_logits(self, text_feature, video_feature):
+        # if shaped is False:
+        #     attention_mask = attention_mask.view(-1, attention_mask.shape[-1])
+        #     video_mask = video_mask.view(-1, video_mask.shape[-1])
+
+        logit_scale = self.clip.logit_scale.exp()
+        retrieve_logits = logit_scale * torch.matmul(text_feature, video_feature.T)
+        return retrieve_logits
+    
+    def _init_temporal(self, max_temporal_embeddings) -> BaseTemporalModule:         
         if self.temporal_mode is TemporalMode.MEAN_POOLING:
             return temporal.MeanPooling()
                     
-        self.num_temporal_embeddings = self.positional_embedding.shape[0]
-        self.transformer_width = self.clip.ln_final.weight.shape.shape[0]
-        self.heads = self.transformer_width // 64
+        self.num_temporal_embeddings = self.clip.positional_embedding.shape[0]
+        self.transformer_width = self.clip.ln_final.weight.shape[0]
+        heads = self.transformer_width // 64
         
         assert self.num_temporal_embeddings <= max_temporal_embeddings
-        
         temporal_trans = TemporalTransformer(
             width=self.transformer_width, 
             layers=self.num_temporal_hidden_layers,
-            heads=self.transformer_heads, 
+            heads=heads, 
             hidden_size=self.hidden_size,
             num_temporal_embeddings=self.num_temporal_embeddings
         )   
