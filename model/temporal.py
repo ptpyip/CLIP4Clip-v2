@@ -37,7 +37,7 @@ class BaseTemporalModule(nn.Module, ABC):
         
 #         return out
 
-class TemporalTransformer(nn.Module):
+class TemporalTransformer(BaseTemporalModule):
     def __init__(self, 
         width: int, 
         layers: int, 
@@ -89,7 +89,7 @@ class BertPooler(nn.Module):
         return pooled_output
     
     
-class MeanPooling(nn.Module):
+class MeanPooling(BaseTemporalModule):
     """perform Global Average Pooling"""
     def __init__(self):
         super().__init__()
@@ -109,7 +109,7 @@ class MeanPooling(nn.Module):
         return pooled_out
 
 
-class MaxPooling(nn.Module):
+class MaxPooling(BaseTemporalModule):
     """perform Global Max Pooling"""
     def __init__(self):
         super().__init__()
