@@ -30,12 +30,7 @@ class TrainConfig(BaseSettings):
     # Proportion of training to perform linear learning rate warmup for. E.g., 0.1 = 10%% of training.
     gradient_accumulation_steps: int = 1    
     # reduce batch size by k, to fit data into VRAM. Run K times before update
-
-    
-class EvalConfig(BaseSettings):
-    batch_size: int
-    n_display: int
-    
+   
     
 class DistributedConfig(BaseSettings):
     world_size: int
@@ -45,14 +40,17 @@ class DataConfig(BaseSettings):
     dataset: Dataset
     data_path: str
     video_path: str
-    ...
-
+    frame_rate: int = 1
+    max_words: int = 32
+    max_frames: int = 10
+    num_thread_reader: int = 1
+    train_batch_size: Optional[int]
+    eval_batch_size: Optional[int]
 
 class TaskConfig(BaseSettings):
     seed: int
     local_rank: int             # specified in args (controlled by torch.distributed.launch )
     model: ModelConfig
     train: TrainConfig
-    eval: EvalConfig
 
     
