@@ -2,6 +2,8 @@ import os
 import random
 
 import torch
+import torch.backends.cudnn
+import torch.distributed
 import numpy as np
 
 from clip.clip import _transform as transform
@@ -29,8 +31,7 @@ def set_torch_cuda(seed, local_rank):
     world_size = torch.distributed.get_world_size()
     rank = torch.distributed.get_rank()
     
-
-    distributed = DistributedConfig(world_size, rank)
+    distributed = DistributedConfig(world_size=world_size, rank=rank)
     return distributed
 
 
@@ -63,7 +64,9 @@ def init_device(config: TaskConfig, local_rank):
 
     return device, n_gpu
 
-def init_model(config: ModelConfig, device="cpu", is_training=False):
+def init_model(
+    config: ModelConfig, device: torch.device | str ="cpu", is_training=False
+):
     """init a CLIP4Clip model"""
     state_dict = {}
     if config.ckpt_path != None:
@@ -107,7 +110,7 @@ def retrieval_task(config: TaskConfig):
     distributed = set_torch_cuda(config.seed, local_rank) 
     
     if local_rank == 0:
-        parameters = config.dict().update(distributed.dict())
+        parameters = config.dict() | distributed.dict()
         logger.info("Effective parameters:")
         for key in sorted(parameters):
             logger.info("  <<< {}: {}".format(key, parameters.__dict__[key])) 
