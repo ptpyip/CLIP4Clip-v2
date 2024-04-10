@@ -4,24 +4,23 @@ from __future__ import unicode_literals
 from __future__ import print_function
 
 import os
-from torch.utils.data import Dataset
 import numpy as np
-import pickle
+import pandas as pd
 from .rawvideo_util import RawVideoExtractor
 
 from .retrievalDataset import RetrievalDataset
 
-class MSVD_Dataset(Dataset):
+class MSVTT_Dataset(RetrievalDataset):
+    """
+    Dataset download: 
+        - captions : https://github.com/ArrowLuo/CLIP4Clip/releases/download/v0.0/msrvtt_data.zip
+        - video: https://www.robots.ox.ac.uk/~maxbain/frozen-in-time/data/MSRVTT.zip
+    """
     DATASET_SPLIT = {
-       "train": "train_list.txt",
-       "val": "val_list.txt",
-       "test": "test.txt",
+       "train": "MSRVTT_data.csv",
+    #    "val": None, 
+       "test": "MSRVTT_JSFUSION_test.csv",
 
-    }
-    SPECIAL_TOKEN = {
-        # "CLS_TOKEN": "<|startoftext|>", "SEP_TOKEN": "<|endoftext|>"
-        "START_TOKEN": "<|startoftext|>", "END_TOKEN": "<|endoftext|>",
-        "MASK_TOKEN": "[MASK]", "UNK_TOKEN": "[UNK]", "PAD_TOKEN": "[PAD]"
     }
 
     def __init__(
@@ -46,39 +45,23 @@ class MSVD_Dataset(Dataset):
         self.subset = subset
         assert self.subset in self.DATASET_SPLIT.keys()
 
-        video_id_path = os.path.join(self.data_dir, self.DATASET_SPLIT[subset])
-        with open(video_id_path, 'r') as fp:
-            video_ids = [itm.strip() for itm in fp.readlines()]
+        data_path = os.path.join(self.data_dir, self.DATASET_SPLIT[subset])
+        assert os.path.exists(data_path)
         
-        caption_file = os.path.join(self.data_dir, "raw-captions.pkl")
-        with open(caption_file, 'rb') as f:
-            captions = pickle.load(f)
-
-        video_paths: dict = self._parse_video_paths(video_dir, video_ids)
-        self.get_video_path = lambda vid: video_paths[vid]
-        self.video_sentence_pairs, self.cut_off_points = self._get_video_sentence_pairs(
-           video_dir, video_ids 
-        )
-
-        ## below variables are used to multi-sentences retrieval
-        # self.cut_off_points: used to tag the label when calculate the metric
-        # self.sentence_num: used to cut the sentence representation
-        # self.video_num: used to cut the video representation
-        self.multi_sentence_per_video = True    # !!! important tag for eval
-        if self.subset == "val" or self.subset == "test":
-            self.sentence_num = len(self.video_sentence_pairs)
-            self.video_num = len(video_ids)
-            assert len(self.cut_off_points) == self.video_num
-            print("For {}, sentence number: {}".format(self.subset, self.sentence_num))
-            print("For {}, video number: {}".format(self.subset, self.video_num))
-
-        print("Video number: {}".format(len(self.video_sentence_pairs)))
-        print("Total Paire: {}".format(len(self.video_sentence_pairs)))
+        self.data = pd.read_csv(data_path)
+        if self.subset == "test":
+            self.video_sentence_pairs = self.data[["video_id", "sentence"]]
+        else:
+            self.video_sentence_pairs = self.data
+            
+        self.get_video_path = lambda video_id: os.path.join(self.video_dir, video_id)
 
         self.sample_len = len(self.video_sentence_pairs)
 
+
     def __len__(self):
         return self.sample_len
+    
     
     def __getitem__(self, idx):
         video_id, sentence = self.video_sentence_pairs[idx]
@@ -86,6 +69,7 @@ class MSVD_Dataset(Dataset):
         text = self._get_text(sentence)
         video, video_mask = self._get_rawvideo(video_id)
         return text, video, video_mask
+
     
     def _get_text(self, sentence):
         txt_tokens = self.tokenizer.tokenize(sentence)
@@ -103,6 +87,7 @@ class MSVD_Dataset(Dataset):
         assert len(txt_token_ids) == self.max_words
         
         return [np.array(txt_token_ids)]        # [1, max_words]
+    
     
     def _get_rawvideo(self, video_id):
         video_length = [0] 
@@ -128,28 +113,3 @@ class MSVD_Dataset(Dataset):
 
         return video, video_mask
     
-    @staticmethod
-    def _parse_video_paths(video_dir, video_ids) -> dict:
-        video_path_dict = {}
-        for root, dub_dir, video_files in os.walk(video_dir):
-            for video_file in video_files:
-                video_id_ = ".".join(video_file.split(".")[:-1])
-                if video_id_ not in video_ids:
-                    continue
-                file_path_ = os.path.join(root, video_file)
-                video_path_dict[video_id_] = file_path_
-        
-        return video_path_dict
-
-    @staticmethod
-    def _get_video_sentence_pairs(video_ids, captions):
-        video_sentence_pairs = []
-        cut_off_points = []
-        for video_id in video_ids:
-            assert video_id in captions
-            for cap in captions[video_id]:
-                cap_txt = " ".join(cap)
-                video_sentence_pairs.append((video_id, cap_txt))
-            cut_off_points.append(len(video_sentence_pairs))
-
-        return video_sentence_pairs, cut_off_points
