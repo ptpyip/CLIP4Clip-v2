@@ -3,7 +3,7 @@ import json
 import pandas as pd
 import  warnings 
 
-def msvtt_json2csv(json_path: str, csv_name = None):
+def msrvtt_json2csv(json_path: str, csv_name = None):
     assert json_path.endswith(".json")
     assert os.path.exists(json_path)
      
@@ -29,4 +29,4 @@ def msvtt_json2csv(json_path: str, csv_name = None):
     return
     
 if __name__ == "__main__":
-    msvtt_json2csv("./msrvtt_data/MSRVTT_data.json")
+    msrvtt_json2csv("./msrvtt_data/MSRVTT_data.json")

@@ -10,7 +10,7 @@ from .rawvideo_util import RawVideoExtractor
 
 from .retrievalDataset import RetrievalDataset
 
-class MSVTT_Dataset(RetrievalDataset):
+class MSRVTTDataset(RetrievalDataset):
     """
     Dataset download: 
         - captions : https://github.com/ArrowLuo/CLIP4Clip/releases/download/v0.0/msrvtt_data.zip
