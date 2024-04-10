@@ -103,10 +103,10 @@ class AllGather(torch.autograd.Function):
     """An autograd function that performs allgather on a tensor."""
 
     @staticmethod
-    def forward(ctx, tensor, args):
-        output = [torch.empty_like(tensor) for _ in range(args.world_size)]
+    def forward(ctx, tensor, world_size, rank):
+        output = [torch.empty_like(tensor) for _ in range(world_size)]
         torch.distributed.all_gather(output, tensor)
-        ctx.rank = args.rank
+        ctx.rank = rank
         ctx.batch_size = tensor.shape[0]
         return torch.cat(output, dim=0)
 

@@ -7,8 +7,8 @@ from enum import Enum
 from .transformer import TransformerEncoder
 
 class TemporalMode(Enum):
-    MEAN_POOLING = 0
-    TRANSFORMER = 1
+    MEAN_POOLING = "meanP"
+    TRANSFORMER = "seqTrans"
     # CrossTransformer = 2        # not used.
     
 class BaseTemporalModule(nn.Module, ABC):
