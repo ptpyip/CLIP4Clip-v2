@@ -1,9 +1,13 @@
 import os
+from typing import Optional
+from functools import partial
 
 import torch
+import torch.distributed
 from torch import nn
+from pydantic import BaseSettings
 
-from .modules import CrossEn
+from .modules import CrossEn, AllGather
 from .pretrainedCLIP import PreTrainedClip
 
 from . import temporal 
@@ -15,13 +19,30 @@ MODELS = [
     # "Trans-ViT-B/16","Trans-ViT-B/32"
 ]
 
-def build_model(model_name, state_dict: dict = {}):
+
+class CLIPConfig(BaseSettings):
+    name: str
+    pretrained: bool = True
+    freeze_layer_num: int
+    
+
+class ModelConfig(BaseSettings):
+    name: str
+    clip: CLIPConfig
+    image_resolution: int
+    context_length: int
+    temporal_mode: str
+    ckpt_path: Optional[str] = None
+    
+
+def build_model(config: ModelConfig, state_dict: dict = {}):
     """ build model from a given state dict
     if state_dict is {} => build from empty
     """
-    assert model_name in MODELS
+    assert config.name in MODELS
+        
     
-    model = CLIP4Clip(model_name)
+    model = CLIP4Clip(config.name, config.temporal_mode)    #type: ignore
     if state_dict != {}:
         model.load_state_dict(state_dict)
     return model.float()
@@ -35,6 +56,7 @@ class CLIP4Clip(PreTrainedClip):
         hidden_size = 512,
         num_temporal_hidden_layers = 4,
         max_temporal_embeddings = 128,
+        distributed=False, world_size=None, rank=None
     ) -> None:
 
         clip_name = name.split("-", 1)[1]
@@ -54,6 +76,7 @@ class CLIP4Clip(PreTrainedClip):
         
         self.loss_fn = CrossEn()
         self.norm = lambda x: x / x.norm(dim=-1, keepdim=True)
+        self.allgather = partial(AllGather.apply, world_size=world_size, rank=rank)
     
         return
     
@@ -80,34 +103,34 @@ class CLIP4Clip(PreTrainedClip):
         )
         
         temporal_feature = self.temporal(frames, video_mask)
-        return self.norm(temporal_feature) if self.training else temporal_feature
-        
+        # return self.norm(temporal_feature) if self.training else temporal_feature
+        return temporal_feature
     
     def forward(self, text, video, video_mask) -> torch.Tensor:
         text = text.view(-1, text.shape[-1])
         video_mask = video_mask.view(-1, video_mask.shape[-1])
 
-        # T x 3 x H x W
+        # bs x L x 3 x H x W
         video = torch.as_tensor(video).float()
-        b, pair, bs, ts, channel, h, w = video.shape
-        video = video.view(b * pair * bs * ts, channel, h, w)
+        bs, L, channel, h, w = video.shape
+        video = video.view(bs*L, channel, h, w)
         
         text_feature = self.forward_text(text)
         video_feature = self.forward_visual(video, video_mask)
-
-        ## assume training
-        # if not self.training:
-        #     return None
         
-        loss = 0.
+        ## blocking
+        text_feature = self.allgather(text_feature)
+        video_feature = self.allgather(video_feature)
+        video_mask = self.allgather(video_mask)
+        torch.distributed.barrier()
+        
         sim_matrix, *_tmp = self.get_similarity_logits(
             text_feature, video_feature
         )
         
         sim_loss1 = self.loss_fn(sim_matrix)
         sim_loss2 = self.loss_fn(sim_matrix.T)
-        sim_loss = (sim_loss1 + sim_loss2) / 2
-        loss += sim_loss
+        loss = (sim_loss1 + sim_loss2) / 2
 
         return loss
     

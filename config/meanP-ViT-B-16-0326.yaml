@@ -28,5 +28,7 @@ train:
     batch_size: 128
     n_display: 50
 
+
+
 seed: 42
     

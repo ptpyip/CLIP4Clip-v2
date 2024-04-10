@@ -13,6 +13,8 @@ from utils import logging
 from utils.logging import logger
 
 from ..model import build_model, CLIPTokenizer
+from .train import train
+from .eval import get_eval_epoch
 
 def set_torch_cuda(seed, local_rank):
     # global logger
@@ -45,22 +47,13 @@ def set_logger(output_dir):
     logging.set_logger(os.path.join(output_dir, "log.txt"))
      
 
-def init_device(config: TaskConfig, local_rank):
+def init_device(local_rank):
     device = torch.device(
         "cuda" if torch.cuda.is_available() else "cpu", local_rank
     )
 
     n_gpu = torch.cuda.device_count()
     logger.info(f"device: {device} n_gpu: {n_gpu}")
-    # args.n_gpu = n_gpu
-
-    if (config.train.batch_size % n_gpu != 0 
-        or config.eval.batch_size % n_gpu != 0
-    ):
-        raise ValueError(
-            "Invalid batch_size/batch_size_val and n_gpu parameter: {}%{} and {}%{}, should be == 0".format(
-            config.train.batch_size, n_gpu, config.eval.batch_size, n_gpu)
-        )
 
     return device, n_gpu
 
@@ -76,7 +69,7 @@ def init_model(
             )
         state_dict = torch.load(config.ckpt_path, map_location=device)
         
-    model = build_model(config.name, state_dict)
+    model = build_model(config, state_dict)
     
     ### freeze testing
     freeze_layer_num = config.clip.freeze_layer_num 
@@ -101,25 +94,41 @@ def init_model(
     
     return model, transform(model.input_resolution)
 
-def init_dataloaders():
-    ...
 
-
-def retrieval_task(config: TaskConfig):
+def retrieval_task(config: TaskConfig, is_train=True, distributed=True):
+    assert (config.train is not None) == is_train
     local_rank = config.local_rank
-    distributed = set_torch_cuda(config.seed, local_rank) 
+    distribute_config = set_torch_cuda(config.seed, local_rank) 
     
     if local_rank == 0:
-        parameters = config.dict() | distributed.dict()
+        parameters = config.dict() | distribute_config.dict()
         logger.info("Effective parameters:")
         for key in sorted(parameters):
             logger.info("  <<< {}: {}".format(key, parameters.__dict__[key])) 
     
-    device, n_gpu = init_device(config, local_rank)
-    model = init_model(config.model, device, is_training=True)
+    device, n_gpu = init_device(local_rank)
+    model, _ = init_model(config.model, device, is_training=True)
+    """ transform is done on video extraction."""
     
     tokenizer = CLIPTokenizer()
+    
     # dataloaders = init_dataloaders()
+
+    eval_epoch = get_eval_epoch(
+        config.data, tokenizer, local_rank, n_gpu, distributed
+    )
+    if is_train:
+        assert config.train is not None
+        train(
+            model, config.train, config.data, tokenizer, 
+            eval_epoch, device, local_rank, n_gpu, 
+        )
+    else:
+        if local_rank !=0:
+            pass
+        eval_epoch(model=model, device=device, n_gpu=n_gpu)
+        
+        
     
     
     

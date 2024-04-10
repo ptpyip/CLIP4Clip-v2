@@ -2,22 +2,12 @@ from pydantic import BaseSettings
 from typing import Optional
 from enum import Enum
 
-class Dataset(Enum):
-    MSVD = "msvd"
-    MRVTT = "msrvtt"
-    LSMDC = "lsmdc"
-    
+from ..model import ModelConfig
 
-class CLIPConfig(BaseSettings):
-    name: str
-    pretrained: bool = True
-    freeze_layer_num: int
-    
-
-class ModelConfig(BaseSettings):
-    name: str
-    clip: CLIPConfig
-    ckpt_path: Optional[str] = None
+# class Dataset(Enum):
+#     MSVD = "msvd"
+#     MRVTT = "msrvtt"
+#     LSMDC = "lsmdc"
     
 
 class TrainConfig(BaseSettings):
@@ -37,9 +27,9 @@ class DistributedConfig(BaseSettings):
     rank: int
 
 class DataConfig(BaseSettings):
-    dataset: Dataset
-    data_path: str
-    video_path: str
+    dataset: str
+    data_dir: str
+    video_dir: str
     frame_rate: int = 1
     max_words: int = 32
     max_frames: int = 10
@@ -51,6 +41,7 @@ class TaskConfig(BaseSettings):
     seed: int
     local_rank: int             # specified in args (controlled by torch.distributed.launch )
     model: ModelConfig
-    train: TrainConfig
+    train: Optional[TrainConfig]
+    data: DataConfig
 
     
