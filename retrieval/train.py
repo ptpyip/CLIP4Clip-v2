@@ -87,11 +87,14 @@ def train_epoch(
 
 def train(
     model, config: TrainConfig, data_config: DataConfig,
-    eval_epoch, device, local_rank, n_gpu=0,
+    tokenizer, eval_epoch, device, local_rank, n_gpu=0,
     resume_ckpt_path=None, save_dir=None
 ):
-    sampler: DistributedSampler
-    dataloader, sample_size, sampler = init_dataloader(data_config, mode="train")
+    # sampler: DistributedSampler
+    dataloader, sample_size, sampler = init_dataloader(
+        data_config, "train", tokenizer, n_gpu, distributed=True
+    )
+    assert isinstance(sampler, DistributedSampler)
     
     assert len(dataloader) == config.batch_size 
     num_optimization_steps = (

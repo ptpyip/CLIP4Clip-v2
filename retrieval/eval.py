@@ -23,8 +23,11 @@ def __eval_epoch(model, dataloader, device, n_gpu):
     else:
         return single_sentence_eval_epoch(model, dataloader, device, n_gpu)
     
-def get_eval_epoch(config: DataConfig, local_rank):
-    dataloader, sample_size, _ = init_dataloader(config, mode="test")
+def get_eval_epoch(config: DataConfig, tokenizer, local_rank, n_gpu, distributed):
+    dataloader, sample_size, _ = init_dataloader(
+        config, subset="test", tokenizer=tokenizer, 
+        n_gpu=n_gpu, distributed=distributed
+    )
     
     if local_rank == 0:
         logger.info("***** Running test *****")
@@ -34,7 +37,7 @@ def get_eval_epoch(config: DataConfig, local_rank):
         
     assert hasattr(dataloader.dataset, 'multi_sentence_query')  
     if dataloader.dataset.multi_sentence_query:
-        return partial(multi_sentence_eval_epoch, dataloader=dataloader)
+        return partial(multi_sentence_eval_epoch, dataloader=dataloader, n_gpu=n_gpu)
         # return lambda model, device, n_gpu: multi_sentence_eval_epoch(model, dataloader, device, n_gpu)
     else:
         return partial(single_sentence_eval_epoch, dataloader=dataloader)
