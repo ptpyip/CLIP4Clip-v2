@@ -78,7 +78,7 @@ class RawVideoExtractorCV2():
 
     def process_raw_data(self, raw_video_data):
         tensor_size = raw_video_data.size()
-        tensor = raw_video_data.view(-1, 1, tensor_size[-3], tensor_size[-2], tensor_size[-1])
+        tensor = raw_video_data.view(-1, tensor_size[-3], tensor_size[-2], tensor_size[-1])
         return tensor
 
     def process_frame_order(self, raw_video_data, frame_order=0):

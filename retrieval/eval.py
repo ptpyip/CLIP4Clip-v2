@@ -29,7 +29,7 @@ def get_eval_epoch(config: DataConfig, local_rank):
     if local_rank == 0:
         logger.info("***** Running test *****")
         logger.info("  Num examples = %d", sample_size)
-        logger.info("  Batch size = %d", config.batch_size)
+        logger.info("  Batch size = %d", config.eval_batch_size)
         logger.info("  Num steps = %d", len(dataloader))
         
     assert hasattr(dataloader.dataset, 'multi_sentence_query')  

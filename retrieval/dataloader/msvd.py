@@ -19,7 +19,8 @@ class MSVD_Dataset(Dataset):
 
     }
     SPECIAL_TOKEN = {
-        "CLS_TOKEN": "<|startoftext|>", "SEP_TOKEN": "<|endoftext|>",
+        # "CLS_TOKEN": "<|startoftext|>", "SEP_TOKEN": "<|endoftext|>"
+        "START_TOKEN": "<|startoftext|>", "END_TOKEN": "<|endoftext|>",
         "MASK_TOKEN": "[MASK]", "UNK_TOKEN": "[UNK]", "PAD_TOKEN": "[PAD]"
     }
 
@@ -53,9 +54,9 @@ class MSVD_Dataset(Dataset):
         with open(caption_file, 'rb') as f:
             captions = pickle.load(f)
 
-        self.video_paths: dict = self.parse_video_paths(video_dir, video_ids)
+        self.video_paths: dict = self._parse_video_paths(video_dir, video_ids)
 
-        self.video_sentence_pairs, self.cut_off_points = self.get_video_sentence_pairs(
+        self.video_sentence_pairs, self.cut_off_points = self._get_video_sentence_pairs(
            video_dir, video_ids 
         )
 
@@ -79,8 +80,56 @@ class MSVD_Dataset(Dataset):
     def __len__(self):
         return self.sample_len
     
+    def __getitem__(self, idx):
+        video_id, sentence = self.video_sentence_pairs[idx]
+
+        pairs_text = self._get_text(sentence)
+        video, video_mask = self._get_rawvideo(video_id)
+        return pairs_text, video, video_mask
+    
+    def _get_text(self, sentence):
+        txt_tokens = self.tokenizer.tokenize(sentence)
+        
+        ## add special tokens w/ truncation
+        if len(txt_tokens) >  self.max_words - 2:
+            txt_tokens = txt_tokens[:self.max_words - 2]            
+        txt_tokens = [self.SPECIAL_TOKEN["START_TOKEN"], *txt_tokens, self.SPECIAL_TOKEN["END_TOKEN"]]
+        
+        txt_token_ids = self.tokenizer.convert_tokens_to_ids(txt_tokens)
+        if len(txt_token_ids) < self.max_words:
+            paddings =  [0] * (self.max_words - len(txt_token_ids)) 
+            txt_token_ids.extend(paddings)
+
+        assert len(txt_token_ids) == self.max_words
+        
+        return [np.array(txt_token_ids)]        # [1, max_words]
+    
+    def _get_rawvideo(self, video_id):
+        video_length = [0] 
+        video_mask = np.zeros((1, self.max_frames), dtype=np.int64)
+        video = np.zeros((
+            1, self.max_frames, 3, self.rawVideoExtractor.size, self.rawVideoExtractor.size
+        ), dtype=np.float64)  # 1 x L x 3 x H x W
+        
+        video_path = self.video_paths[video_id]
+        raw_video_data = self.rawVideoExtractor.get_video_data(video_path)
+        raw_video_data = raw_video_data['video']
+        
+        
+        raw_video_slice = self.rawVideoExtractor.process_raw_data(raw_video_data)   # L x 3 x H x W
+        sample_idx = np.linspace(0, raw_video_slice.shape[0] - 1, num=self.max_frames, dtype=int)
+        raw_video_slice = raw_video_slice[sample_idx, ...]
+            
+        video_slice = self.rawVideoExtractor.process_frame_order(raw_video_slice)
+        video_length = video_slice.shape[0]
+        
+        video[0][:video_length] = video_slice 
+        video_mask[0][:video_length] = [1] * video_length 
+
+        return video, video_mask
+    
     @staticmethod
-    def parse_video_paths(video_dir, video_ids) -> dict:
+    def _parse_video_paths(video_dir, video_ids) -> dict:
         video_path_dict = {}
         for root, dub_dir, video_files in os.walk(video_dir):
             for video_file in video_files:
@@ -93,7 +142,7 @@ class MSVD_Dataset(Dataset):
         return video_path_dict
 
     @staticmethod
-    def get_video_sentence_pairs(video_ids, captions):
+    def _get_video_sentence_pairs(video_ids, captions):
         video_sentence_pairs = []
         cut_off_points = []
         for video_id in video_ids:
