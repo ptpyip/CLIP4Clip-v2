@@ -30,7 +30,7 @@ class MSRVTTDataset(RetrievalDataset):
         video_dir,
         tokenizer,
         max_words=30,
-        framerate=1.0,
+        framerate=1,
         max_frames=100,
         image_resolution=224,
     ):
