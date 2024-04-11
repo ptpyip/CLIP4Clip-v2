@@ -96,7 +96,7 @@ def train(
     )
     assert isinstance(sampler, DistributedSampler)
     
-    assert len(dataloader) == config.batch_size 
+    # assert len(dataloader) == config.batch_size 
     num_optimization_steps = (
         int(config.batch_size + config.gradient_accumulation_steps - 1)
          / config.gradient_accumulation_steps

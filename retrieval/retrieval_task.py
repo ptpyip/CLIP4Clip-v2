@@ -93,6 +93,7 @@ def init_model(
                 
             param.requires_grad = False
     
+    model.to(device)    
     return model, transform(model.input_resolution)
 
 
