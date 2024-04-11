@@ -72,7 +72,8 @@ def init_model(
     model = build_model(config, state_dict)
     
     ### freeze testing
-    freeze_layer_num = config.clip.freeze_layer_num 
+    # freeze_layer_num = config.clip.freeze_layer_num 
+    freeze_layer_num = 0
     assert freeze_layer_num <= 12 and freeze_layer_num >= -1
     if is_training and freeze_layer_num > -1:
         for name, param in model.clip.named_parameters():
