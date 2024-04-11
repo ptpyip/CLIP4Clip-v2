@@ -1,4 +1,4 @@
-# CLIP4Clip: An Empirical Study of CLIP for End to End Video Clip Retrieval
+# CLIP4Clip v2: A Modified CLIP4Clip codebase for Video Clip Retrieval
 
 Modified implementation of paper [**CLIP4Clip: An Empirical Study of CLIP for End to End Video Clip Retrieval**](https://arxiv.org/abs/2104.08860). 
 (Official repo can be found [here](https://github.com/ArrowLuo/CLIP4Clip))
