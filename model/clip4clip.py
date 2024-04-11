@@ -24,15 +24,15 @@ class CLIPConfig(BaseSettings):
     name: str
     pretrained: bool = True
     freeze_layer_num: int
-    
-
+  
 class ModelConfig(BaseSettings):
     name: str
-    clip: CLIPConfig
-    image_resolution: int
-    context_length: int
+    # clip: CLIPConfig
+    # image_resolution: int
+    # context_length: int
     temporal_mode: str
     ckpt_path: Optional[str] = None
+    
     
 
 def build_model(config: ModelConfig, state_dict: dict = {}):
