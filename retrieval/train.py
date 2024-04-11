@@ -19,7 +19,7 @@ from .utils.logging import logger
 # from .eval import EvalEpochCallable
 from .dataloader import  init_dataloader
 
-from ..model import CLIP4Clip
+from model import CLIP4Clip
 
 ### Helpers
 def lr_cosine_with_warmup(t, warmup=0.002):

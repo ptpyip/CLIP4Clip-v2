@@ -2,7 +2,7 @@ from pydantic import BaseSettings
 from typing import Optional
 from enum import Enum
 
-from ..model import ModelConfig
+from model import ModelConfig, CLIPConfig
 
 # class Dataset(Enum):
 #     MSVD = "msvd"
@@ -20,7 +20,7 @@ class TrainConfig(BaseSettings):
     # Proportion of training to perform linear learning rate warmup for. E.g., 0.1 = 10%% of training.
     gradient_accumulation_steps: int = 1    
     # reduce batch size by k, to fit data into VRAM. Run K times before update
-   
+
     
 class DistributedConfig(BaseSettings):
     world_size: int

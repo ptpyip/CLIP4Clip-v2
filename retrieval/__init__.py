@@ -4,4 +4,4 @@ import os
 import yaml
 import torch
 
-
+from retrieval_task import retrieval_task

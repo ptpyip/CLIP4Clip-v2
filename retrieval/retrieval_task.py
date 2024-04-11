@@ -12,7 +12,7 @@ from .config import *
 from utils import logging
 from utils.logging import logger
 
-from ..model import build_model, CLIPTokenizer
+from model import build_model, CLIPTokenizer
 from .train import train
 from .eval import get_eval_epoch
 

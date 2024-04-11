@@ -5,7 +5,7 @@ from typing import Callable, Optional
 import torch
 from torch.utils.data import DataLoader
 
-from ..clip4clip import CLIP4Clip
+from model import CLIP4Clip
 from .utils import metrics
 from .utils.logging import logger
 from .utils.distributed import parallel_apply
