@@ -72,7 +72,7 @@ class MSRVTTDataset(RetrievalDataset):
 
     
     def _get_text(self, sentence):
-        txt_tokens = self.tokenize(sentence)
+        txt_tokens = self.tokenizer.tokenize(sentence)
         
         ## add special tokens w/ truncation
         if len(txt_tokens) >  self.max_words - 2:
