@@ -54,7 +54,7 @@ class MSRVTTDataset(RetrievalDataset):
         else:
             self.video_sentence_pairs = self.data.iloc
             
-        self.get_video_path = lambda video_id: os.path.join(self.video_dir, video_id)
+        self.get_video_path = lambda video_id: os.path.join(self.video_dir, f"{video_id}.mp4")
 
         self.sample_len = len(self.data)
 
