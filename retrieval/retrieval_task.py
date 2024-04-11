@@ -102,6 +102,7 @@ def retrieval_task(config: TaskConfig, is_train=True, distributed=True):
     assert (config.train is not None) == is_train
     local_rank = config.local_rank
     distribute_config = set_torch_cuda(config.seed, local_rank) 
+    set_logger(output_dir="logs")
     
     if local_rank == 0:
         parameters = config.dict() | distribute_config.dict()
