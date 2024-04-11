@@ -50,13 +50,13 @@ class MSRVTTDataset(RetrievalDataset):
         
         self.data = pd.read_csv(data_path)
         if self.subset == "test":
-            self.video_sentence_pairs = self.data[["video_id", "sentence"]]
+            self.video_sentence_pairs = self.data[["video_id", "sentence"]].iloc
         else:
-            self.video_sentence_pairs = self.data
+            self.video_sentence_pairs = self.data.iloc
             
         self.get_video_path = lambda video_id: os.path.join(self.video_dir, video_id)
 
-        self.sample_len = len(self.video_sentence_pairs)
+        self.sample_len = len(self.data)
 
 
     def __len__(self):
