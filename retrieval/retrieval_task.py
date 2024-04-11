@@ -7,6 +7,7 @@ import torch.distributed
 import numpy as np
 
 from clip.clip import _transform as transform
+from clip import tokenize
 
 from .config import *
 from .utils import logging

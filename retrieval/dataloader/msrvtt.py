@@ -6,8 +6,8 @@ from __future__ import print_function
 import os
 import numpy as np
 import pandas as pd
-from .rawvideo_util import RawVideoExtractor
 
+from .rawvideo_util import RawVideoExtractor
 from .retrievalDataset import RetrievalDataset
 
 class MSRVTTDataset(RetrievalDataset):
@@ -72,7 +72,7 @@ class MSRVTTDataset(RetrievalDataset):
 
     
     def _get_text(self, sentence):
-        txt_tokens = self.tokenizer.tokenize(sentence)
+        txt_tokens = self.tokenize(sentence)
         
         ## add special tokens w/ truncation
         if len(txt_tokens) >  self.max_words - 2:
