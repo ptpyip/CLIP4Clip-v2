@@ -62,9 +62,9 @@ def main():
         model=model_config, train=train_config, data=dataset_config, 
         local_rank=args.local_rank, seed=config_dict.get("seed", 0)
     )
-    print(dataset_config)    
+    # print(dataset_config)    
     
-    # retrieval_task(task_config, is_train, distributed=torch.distributed.is_initialized())
+    retrieval_task(task_config, is_train, distributed=torch.distributed.is_initialized())
     
      
 if __name__ == "__main__":

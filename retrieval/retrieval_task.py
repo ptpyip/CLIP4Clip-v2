@@ -104,7 +104,7 @@ def retrieval_task(config: TaskConfig, is_train=True, distributed=True):
         parameters = config.dict() | distribute_config.dict()
         logger.info("Effective parameters:")
         for key in sorted(parameters):
-            logger.info("  <<< {}: {}".format(key, parameters.__dict__[key])) 
+            logger.info("  <<< {}: {}".format(key, parameters[key])) 
     
     device, n_gpu = init_device(local_rank)
     model, _ = init_model(config.model, device, is_training=True)
