@@ -1,4 +1,4 @@
-from pydantic import BaseSettings
+from pydantic import BaseModel
 from typing import Optional
 from enum import Enum
 
@@ -10,7 +10,7 @@ from model import ModelConfig, CLIPConfig
 #     LSMDC = "lsmdc"
     
 
-class TrainConfig(BaseSettings):
+class TrainConfig(BaseModel):
     epochs: int
     lr: float
     coef_lr: float =1.
@@ -22,11 +22,11 @@ class TrainConfig(BaseSettings):
     # reduce batch size by k, to fit data into VRAM. Run K times before update
 
     
-class DistributedConfig(BaseSettings):
+class DistributedConfig(BaseModel):
     world_size: int
     rank: int
 
-class DataConfig(BaseSettings):
+class DataConfig(BaseModel):
     dataset: str
     data_dir: str
     video_dir: str
@@ -37,7 +37,7 @@ class DataConfig(BaseSettings):
     train_batch_size: Optional[int]
     eval_batch_size: Optional[int]
 
-class TaskConfig(BaseSettings):
+class TaskConfig(BaseModel):
     seed: int
     local_rank: int             # specified in args (controlled by torch.distributed.launch )
     model: ModelConfig

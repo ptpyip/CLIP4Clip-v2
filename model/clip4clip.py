@@ -5,7 +5,7 @@ from functools import partial
 import torch
 import torch.distributed
 from torch import nn
-from pydantic import BaseSettings
+from pydantic import BaseModel
 
 from .modules import CrossEn, AllGather
 from .pretrainedCLIP import PreTrainedClip
@@ -20,12 +20,12 @@ MODELS = [
 ]
 
 
-class CLIPConfig(BaseSettings):
+class CLIPConfig(BaseModel):
     name: str
     pretrained: bool = True
     freeze_layer_num: int
   
-class ModelConfig(BaseSettings):
+class ModelConfig(BaseModel):
     name: str
     # clip: CLIPConfig
     # image_resolution: int
