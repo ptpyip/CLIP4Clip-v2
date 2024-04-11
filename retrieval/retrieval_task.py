@@ -9,8 +9,8 @@ import numpy as np
 from clip.clip import _transform as transform
 
 from .config import *
-from utils import logging
-from utils.logging import logger
+from .utils import logging
+from .utils.logging import logger
 
 from model import build_model, CLIPTokenizer
 from .train import train

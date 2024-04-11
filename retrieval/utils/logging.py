@@ -2,10 +2,10 @@
 import logging
 
 global logger
+logger = logging.getLogger('logger')
 
 def set_logger(filename=None):
     global logger
-    logger = logging.getLogger('logger')
     logger.setLevel(logging.DEBUG)
     logging.basicConfig(format='%(asctime)s - %(levelname)s -   %(message)s',
                     datefmt='%m/%d/%Y %H:%M:%S',

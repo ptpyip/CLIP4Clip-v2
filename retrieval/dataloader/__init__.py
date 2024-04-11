@@ -1,1 +1,1 @@
-from retrievalDataloader import *
+from .retrievalDataloader import *

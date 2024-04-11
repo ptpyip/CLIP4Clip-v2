@@ -12,7 +12,7 @@ from clip.clip import _transform as transform
 from retrieval.config import *
 from retrieval import retrieval_task
 
-# from model import CLIP4Clip
+from model import CLIP4Clip
 
 MODELS = [
     "meanP-ViT-B/16","meanP-ViT-B/32",
@@ -64,7 +64,7 @@ def main():
     )
     print(dataset_config)    
     
-    retrieval_task(task_config, is_train, distributed=torch.distributed.is_initialized())
+    # retrieval_task(task_config, is_train, distributed=torch.distributed.is_initialized())
     
      
 if __name__ == "__main__":
