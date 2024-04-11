@@ -87,7 +87,7 @@ class MSRVTTDataset(RetrievalDataset):
 
         assert len(txt_token_ids) == self.max_words
         
-        return torch.Tensor([txt_token_ids])        # [1, max_words]
+        return torch.Tensor([txt_token_ids]).to(torch.int64)        # [1, max_words]
     
     
     def _get_rawvideo(self, video_id):
