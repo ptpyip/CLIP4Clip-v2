@@ -91,10 +91,9 @@ class MSRVTTDataset(RetrievalDataset):
     
     
     def _get_rawvideo(self, video_id):
-        video_length = [0] 
-        video_mask = np.zeros((1, self.max_frames), dtype=np.int64)
+        video_mask = np.zeros((self.max_frames), dtype=np.int64)
         video = np.zeros((
-            1, self.max_frames, 3, self.rawVideoExtractor.size, self.rawVideoExtractor.size
+            self.max_frames, 3, self.rawVideoExtractor.size, self.rawVideoExtractor.size
         ), dtype=np.float64)  # 1 x L x 3 x H x W
         
         video_path = self.get_video_path(video_id)
@@ -109,8 +108,8 @@ class MSRVTTDataset(RetrievalDataset):
         video_slice = self.rawVideoExtractor.process_frame_order(raw_video_slice)
         video_length = video_slice.shape[0]
         
-        video[0][:video_length] = video_slice 
-        video_mask[0][:video_length] = [1] * video_length 
+        video[:video_length] = video_slice 
+        video_mask[:video_length] = [1] * video_length 
 
         return video, video_mask
     
