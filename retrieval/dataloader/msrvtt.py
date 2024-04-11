@@ -5,6 +5,7 @@ from __future__ import print_function
 
 import os
 import numpy as np
+import torch
 import pandas as pd
 
 from .rawvideo_util import RawVideoExtractor
@@ -86,7 +87,7 @@ class MSRVTTDataset(RetrievalDataset):
 
         assert len(txt_token_ids) == self.max_words
         
-        return [np.array(txt_token_ids)]        # [1, max_words]
+        return torch.Tensor([txt_token_ids])        # [1, max_words]
     
     
     def _get_rawvideo(self, video_id):
