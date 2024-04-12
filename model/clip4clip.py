@@ -35,7 +35,7 @@ class ModelConfig(BaseModel):
     
     
 
-def build_model(config: ModelConfig, state_dict: dict = {}):
+def build_model(config: ModelConfig, state_dict: dict = {}, world_size=None, rank=None):
     """ build model from a given state dict
     if state_dict is {} => build from empty
     """
@@ -76,6 +76,7 @@ class CLIP4Clip(PreTrainedClip):
         
         self.loss_fn = CrossEn()
         self.norm = lambda x: x / x.norm(dim=-1, keepdim=True)
+        
         self.allgather = lambda tensor: AllGather.apply(tensor, world_size, rank)
     
         return

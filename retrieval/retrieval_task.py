@@ -59,7 +59,8 @@ def init_device(local_rank):
     return device, n_gpu
 
 def init_model(
-    config: ModelConfig, device: torch.device | str ="cpu", is_training=False
+    config: ModelConfig, device: torch.device | str ="cpu", is_training=False,
+    world_size=None, rank=None
 ):
     """init a CLIP4Clip model"""
     state_dict = {}
@@ -70,7 +71,7 @@ def init_model(
             )
         state_dict = torch.load(config.ckpt_path, map_location=device)
         
-    model = build_model(config, state_dict)
+    model = build_model(config, state_dict, world_size, rank)
     
     ### freeze testing
     # freeze_layer_num = config.clip.freeze_layer_num 
@@ -111,7 +112,7 @@ def retrieval_task(config: TaskConfig, is_train=True, distributed=True):
             logger.info("  <<< {}: {}".format(key, parameters[key])) 
     
     device, n_gpu = init_device(local_rank)
-    model, _ = init_model(config.model, device, is_training=True)
+    model, _ = init_model(config.model, device, is_training=True, **distribute_config.dict())
     """ transform is done on video extraction."""
     
     tokenizer = CLIPTokenizer()
