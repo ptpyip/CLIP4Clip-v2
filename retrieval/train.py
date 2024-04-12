@@ -71,7 +71,7 @@ def train_epoch(
             optimizer.zero_grad()
             
             # https://github.com/openai/CLIP/issues/46
-            torch.clamp_(model.clip.logit_scale.data, max=np.log(100))
+            torch.clamp_(model.module.clip.logit_scale.data, max=np.log(100))
                 
             global_step += 1
             if global_step % log_step == 0 and local_rank == 0:
