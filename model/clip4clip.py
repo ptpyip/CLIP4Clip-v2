@@ -76,7 +76,7 @@ class CLIP4Clip(PreTrainedClip):
         
         self.loss_fn = CrossEn()
         self.norm = lambda x: x / x.norm(dim=-1, keepdim=True)
-        self.allgather = partial(AllGather.apply, world_size=world_size, rank=rank)
+        self.allgather = lambda tensor: AllGather.apply(tensor, world_size, rank)
     
         return
     

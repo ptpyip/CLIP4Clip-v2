@@ -31,7 +31,7 @@ class DataConfig(BaseModel):
     data_dir: str
     video_dir: str
     frame_rate: int = 1
-    max_words: int = 32
+    max_words: int = 77 
     max_frames: int = 10
     num_thread_reader: int = 1
     train_batch_size: Optional[int]

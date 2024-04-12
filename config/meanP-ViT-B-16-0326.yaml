@@ -14,7 +14,7 @@ model:
             77                      # as pre-train
         tokenizer: clip             # use clip.tokenizer
     temporal:
-        mode: &temporal_mode meanP 
+        mode: &temporal_mode seqTrans 
         max_num_frame: *context_length
         fps: &fps  1
         # hidden_size: 512,
@@ -26,14 +26,14 @@ train:
     epochs: 5
     lr: 1e-4
     coef_lr: 1e-3
-    batch_size: &train_batch_size 128
+    batch_size: &train_batch_size 16
     n_display: 50
 
 
 data:
     dataset: msrvtt
     train_batch_size: *train_batch_size
-    eval_batch_size: 16 
+    eval_batch_size: 8 
 
 
 seed: 42
