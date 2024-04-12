@@ -114,5 +114,5 @@ class AllGather(torch.autograd.Function):
     def backward(ctx, grad_output):
         return (
             grad_output[ctx.batch_size * ctx.rank : ctx.batch_size * (ctx.rank + 1)],
-            None,
+            None, None,
         )

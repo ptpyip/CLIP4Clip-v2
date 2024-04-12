@@ -60,14 +60,14 @@ def train_epoch(
             loss = loss / gradient_accumulation_steps
             
         loss.backward()
-        total_loss += loss.item()
+        total_loss += float(loss.item())
         
         ## skip if not enough steps
         if step % gradient_accumulation_steps == 0:
             ## update optimizer and lr
             clip_grad(model, 1.0)
-            scheduler.step() 
             optimizer.step()
+            scheduler.step() 
             optimizer.zero_grad()
             
             # https://github.com/openai/CLIP/issues/46
@@ -107,8 +107,7 @@ def train(
     ) 
     
     model = nn.parallel.DistributedDataParallel(
-        model, device_ids=[local_rank], output_device=local_rank, 
-        find_unused_parameters=True
+        model, device_ids=[local_rank], output_device=local_rank
     ) 
     
     if local_rank == 0:
@@ -135,7 +134,7 @@ def train(
         train_log = lambda step, lr, loss, time_per_epoch : logger.info(
             ", ".join((
                f"Epoch: {epoch}/{config.epochs}",
-               f"Step: {step}/{config.batch_size}",
+               f"Step: {step}/{len(dataloader)}",
                f"Lr: {lr}", f"Loss: {loss}", f"Time/step: {time_per_epoch}" 
             ))
             # f"Epoch: {epoch}/{config.epochs}, Step: {step}/{config.batch_size}, Lr: {lr}, Loss: {loss}, Time/step: {time}"

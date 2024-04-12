@@ -24,9 +24,9 @@ def init_dataloader(
     is_train = (subset == "train")
     batch_size = config.train_batch_size if is_train else config.eval_batch_size
     
-    if batch_size % n_gpu != 0: raise ValueError(
-        f"Invalid batch_size_{subset} and n_gpu parameter: {batch_size}%{n_gpu} should be == 0"
-    )
+    # if batch_size % n_gpu != 0: raise ValueError(
+    #     f"Invalid batch_size_{subset} and n_gpu parameter: {batch_size}%{n_gpu} should be == 0"
+    # )
     
     dataset = Dataset(
         subset, config.data_dir, config.video_dir, tokenizer, 
@@ -37,7 +37,7 @@ def init_dataloader(
     
     dataloader = RetrievalDataLoader(
         dataset,
-        batch_size=batch_size // n_gpu,
+        batch_size=batch_size,      # batch_size per gpu 
         num_workers=config.num_thread_reader,
         shuffle=(is_train and not distributed),
         sampler=sampler,
