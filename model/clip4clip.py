@@ -54,7 +54,7 @@ class CLIP4Clip(PreTrainedClip):
         name,
         temporal_mode: TemporalMode = TemporalMode.MEAN_POOLING,
         hidden_size = 512,
-        num_temporal_hidden_layers = 4,
+        num_temporal_hidden_layers = 2,
         max_temporal_embeddings = 128,
         distributed=False, world_size=None, rank=None
     ) -> None:

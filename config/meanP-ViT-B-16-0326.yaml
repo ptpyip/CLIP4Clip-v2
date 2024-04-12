@@ -18,7 +18,7 @@ model:
         max_num_frame: *context_length
         fps: &fps  1
         # hidden_size: 512,
-        # num_hidden_layers: = 4,
+        num_hidden_layers: = 2,
         # max_um_embeddings: = 128,
     temporal_mode: *temporal_mode
 
