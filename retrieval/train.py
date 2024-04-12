@@ -75,7 +75,8 @@ def train_epoch(
                 
             global_step += 1
             if global_step % log_step == 0 and local_rank == 0:
-                lr = f"{scheduler.get_lr():.9f}"
+                lr = "-".join([str('%.9f'%itm) for itm in sorted(list(set(optimizer.get_lr())))]),
+                # lr = f"{scheduler.get_lr():.9f}"
                 time_per_epoch = (time.time() - start_time) / (log_step * gradient_accumulation_steps)
                 train_log(step, lr, loss, time_per_epoch)
                 
