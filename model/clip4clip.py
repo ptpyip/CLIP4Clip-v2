@@ -42,7 +42,7 @@ def build_model(config: ModelConfig, state_dict: dict = {}, world_size=None, ran
     assert config.name in MODELS
         
     
-    model = CLIP4Clip(config.name, config.temporal_mode)    #type: ignore
+    model = CLIP4Clip(config.name, config.temporal_mode, world_size=world_size, rank=rank)    #type: ignore
     if state_dict != {}:
         model.load_state_dict(state_dict)
     return model.float()
