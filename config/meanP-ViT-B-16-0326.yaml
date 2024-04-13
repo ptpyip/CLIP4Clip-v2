@@ -18,13 +18,13 @@ model:
         max_num_frame: *context_length
         fps: &fps  1
         # hidden_size: 512,
-        num_hidden_layers: = 2,
-        # max_um_embeddings: = 128,
+        num_hidden_layers: 2
+        # max_um_embeddings: 128,
     temporal_mode: *temporal_mode
 
 train:
     epochs: 5
-    lr: 1e-4
+    lr: 1e-7
     coef_lr: 1e-3
     batch_size: &train_batch_size 2
     n_display: 50
