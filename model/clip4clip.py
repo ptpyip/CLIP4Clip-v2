@@ -97,6 +97,10 @@ class CLIP4Clip(PreTrainedClip):
         """
         here in og CLIP4Clip implementation they apply layernorm and projection to entire tans output.
         """
+        # if (video)
+        *_, channel, h, w = frames.shape
+        frames = frames.view(-1, channel, h, w)
+        
         bs = video_mask.size(0)
         frames = self.clip.encode_image(frames).float()
         frames = frames.view(
@@ -108,13 +112,13 @@ class CLIP4Clip(PreTrainedClip):
         return temporal_feature
     
     def forward(self, text, video, video_mask) -> torch.Tensor:
-        text = text.view(-1, text.shape[-1])
-        video_mask = video_mask.view(-1, video_mask.shape[-1])
+        # text = text.view(-1, text.shape[-1])
+        # video_mask = video_mask.view(-1, video_mask.shape[-1])
 
         # bs x L x 3 x H x W
-        video = torch.as_tensor(video).float()
-        bs, L, channel, h, w = video.shape
-        video = video.view(bs*L, channel, h, w)
+        # video = torch.as_tensor(video).float()
+        # bs, L, channel, h, w = video.shape
+        # video = video.view(bs*L, channel, h, w)
         
         text_feature = self.forward_text(text)
         video_feature = self.forward_visual(video, video_mask)

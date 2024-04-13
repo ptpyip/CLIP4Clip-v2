@@ -166,7 +166,8 @@ def compute_similarity(model, batch_sequence_outputs, batch_visual_outputs, n_gp
         sim_matrix = np.concatenate(tuple(sim_matrix), axis=0)
         return sim_matrix
     
-    ## else n_gpu > 1:
+    # else n_gpu > 1:
+    n_gpu = 1     # force use one gpu for eval.
     device_ids = list(range(n_gpu))
     bacth_len = len(batch_sequence_outputs)
     split_len = (bacth_len + n_gpu - 1) // n_gpu
