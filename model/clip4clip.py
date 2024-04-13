@@ -90,7 +90,7 @@ class CLIP4Clip(PreTrainedClip):
             bs, -1, text_feature.size(-1)
         ).squeeze(1)
         
-        return self.norm(text_feature) if self.training else text_feature
+        return  text_feature
     
     
     def forward_visual(self, frames, video_mask):
@@ -124,7 +124,9 @@ class CLIP4Clip(PreTrainedClip):
         video_feature = self.allgather(video_feature)
         video_mask = self.allgather(video_mask)
         torch.distributed.barrier()
-        
+               
+        text_feature = self.norm(text_feature)
+        video_feature = self.norm(video_feature)  
         sim_matrix, *_tmp = self.get_similarity_logits(
             text_feature, video_feature
         )
