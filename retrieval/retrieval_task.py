@@ -127,6 +127,7 @@ def retrieval_task(config: TaskConfig, is_train=True, distributed=True):
         train(
             model, config.train, config.data, tokenizer, 
             eval_epoch, device, local_rank, n_gpu, 
+            save_dir="./ckpts"
         )
     else:
         if local_rank !=0:

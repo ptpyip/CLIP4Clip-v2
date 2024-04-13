@@ -89,7 +89,7 @@ def train_epoch(
 def train(
     model, config: TrainConfig, data_config: DataConfig,
     tokenizer, eval_epoch, device, local_rank, n_gpu=0,
-    resume_ckpt_path=None, save_dir=None
+    resume_ckpt_path=None, save_dir="./ckpts"
 ):
     # sampler: DistributedSampler
     dataloader, sample_size, sampler = init_dataloader(
@@ -203,6 +203,9 @@ def init_optimizer(
 
 
 def save_model(model, output_dir, epoch, optimizer, tr_loss):
+    if (not os.path.exists(output_dir)):
+        os.mkdir(output_dir)
+        
     # Only save the model it-self
     model_to_save = model.module if hasattr(model, 'module') else model
     
