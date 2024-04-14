@@ -97,9 +97,12 @@ class MSRVTTDataset(RetrievalDataset):
         ), dtype=np.float64)  # 1 x L x 3 x H x W
         
         video_path = self.get_video_path(video_id)
-        raw_video_data = self.rawVideoExtractor.get_video_data(video_path)
-        raw_video_data = raw_video_data['video']
-        
+        try:
+            raw_video_data = self.rawVideoExtractor.get_video_data(video_path)
+            raw_video_data = raw_video_data['video']
+        except ZeroDivisionError:
+            print(f"when vid={video_id}, ZeroDivisionError occurred")
+            return video, video_mask 
         
         raw_video_slice = self.rawVideoExtractor.process_raw_data(raw_video_data)   # L x 3 x H x W
         sample_idx = np.linspace(0, raw_video_slice.shape[0] - 1, num=self.max_frames, dtype=int)
